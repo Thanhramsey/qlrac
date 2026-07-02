@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { hash } from 'bcryptjs';
+import * as XLSX from 'xlsx';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -57,6 +58,8 @@ export class UsersService {
     this.validateRequiredFields(createUserDto);
     const roleCode = createUserDto.role?.trim() || 'STAFF';
     await this.ensureRoleExists(roleCode);
+    const routeIds = this.normalizeRouteIds(createUserDto.routeIds);
+    await this.ensureRoutesExist(routeIds);
 
     const matKhauHash = await hash(createUserDto.matKhau, 10);
 
@@ -74,6 +77,11 @@ export class UsersService {
         diaChi: createUserDto.diaChi?.trim(),
         email: createUserDto.email?.trim(),
         roleCode,
+        assignedRoutes: routeIds.length
+          ? {
+              connect: routeIds.map((id) => ({ id })),
+            }
+          : undefined,
       },
       select: this.userSelect,
     });
@@ -93,6 +101,11 @@ export class UsersService {
       ? await hash(updateUserDto.matKhau, 10)
       : undefined;
 
+    const routeIds = this.normalizeRouteIds(updateUserDto.routeIds);
+    if (updateUserDto.routeIds !== undefined) {
+      await this.ensureRoutesExist(routeIds);
+    }
+
     const user = await this.prisma.user.update({
       where: { id },
       data: {
@@ -109,6 +122,12 @@ export class UsersService {
         email: updateUserDto.email?.trim(),
         roleCode,
         isActive: updateUserDto.isActive,
+        assignedRoutes:
+          updateUserDto.routeIds !== undefined
+            ? {
+                set: routeIds.map((routeId) => ({ id: routeId })),
+              }
+            : undefined,
       },
       select: this.userSelect,
     });
@@ -120,6 +139,126 @@ export class UsersService {
     await this.findOne(id);
     await this.prisma.user.delete({ where: { id } });
     return { id };
+  }
+
+  async importFromExcel(file?: Express.Multer.File) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Vui lòng tải lên file Excel hợp lệ');
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+      throw new BadRequestException('File Excel không có dữ liệu');
+    }
+
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+      defval: '',
+      raw: false,
+    });
+
+    if (!rows.length) {
+      throw new BadRequestException('File Excel không có dòng dữ liệu');
+    }
+
+    const normalizedRows = rows.map((row) => ({
+      taiKhoan: this.toText(row.taiKhoan),
+      matKhau: this.toText(row.matKhau),
+      hoVaTen: this.toText(row.hoVaTen),
+      ngaySinh: this.toOptionalText(row.ngaySinh),
+      gioiTinh: this.toOptionalText(row.gioiTinh),
+      soDienThoai: this.toText(row.soDienThoai),
+      soGiayTo: this.toText(row.soGiayTo),
+      diaChi: this.toOptionalText(row.diaChi),
+      email: this.toOptionalText(row.email),
+      role: this.toOptionalText(row.role) ?? 'STAFF',
+      routeIds: this.toOptionalNumberArray(row.routeIds),
+      isActive: this.toOptionalBoolean(row.isActive),
+    }));
+
+    for (let index = 0; index < normalizedRows.length; index++) {
+      const row = normalizedRows[index];
+      if (
+        !row.taiKhoan ||
+        !row.matKhau ||
+        !row.hoVaTen ||
+        !row.soDienThoai ||
+        !row.soGiayTo
+      ) {
+        throw new BadRequestException(
+          `Dòng ${index + 2}: cần có taiKhoan, matKhau, hoVaTen, soDienThoai, soGiayTo`,
+        );
+      }
+
+      await this.ensureRoleExists(row.role);
+      await this.ensureRoutesExist(row.routeIds);
+    }
+
+    for (const row of normalizedRows) {
+      const matKhauHash = await hash(row.matKhau, 10);
+
+      await this.prisma.user.upsert({
+        where: { taiKhoan: row.taiKhoan },
+        update: {
+          matKhauHash,
+          hoVaTen: row.hoVaTen,
+          ngaySinh: row.ngaySinh ? new Date(row.ngaySinh) : null,
+          gioiTinh: row.gioiTinh ?? null,
+          soDienThoai: row.soDienThoai,
+          soGiayTo: row.soGiayTo,
+          diaChi: row.diaChi ?? null,
+          email: row.email ?? null,
+          roleCode: row.role,
+          isActive: row.isActive ?? true,
+          assignedRoutes: {
+            set: row.routeIds.map((routeId) => ({ id: routeId })),
+          },
+        },
+        create: {
+          taiKhoan: row.taiKhoan,
+          matKhauHash,
+          hoVaTen: row.hoVaTen,
+          ngaySinh: row.ngaySinh ? new Date(row.ngaySinh) : undefined,
+          gioiTinh: row.gioiTinh,
+          soDienThoai: row.soDienThoai,
+          soGiayTo: row.soGiayTo,
+          diaChi: row.diaChi,
+          email: row.email,
+          roleCode: row.role,
+          isActive: row.isActive ?? true,
+          assignedRoutes: row.routeIds.length
+            ? {
+                connect: row.routeIds.map((routeId) => ({ id: routeId })),
+              }
+            : undefined,
+        },
+      });
+    }
+
+    return {
+      message: 'Import người dùng thành công',
+      totalRows: normalizedRows.length,
+      guide: {
+        requiredColumns: [
+          'taiKhoan',
+          'matKhau',
+          'hoVaTen',
+          'soDienThoai',
+          'soGiayTo',
+        ],
+        optionalColumns: [
+          'ngaySinh',
+          'gioiTinh',
+          'diaChi',
+          'email',
+          'role',
+          'routeIds',
+          'isActive',
+        ],
+        routeIdsFormat: '1,2,3',
+      },
+    };
   }
 
   private validateRequiredFields(data: CreateUserDto) {
@@ -161,6 +300,13 @@ export class UsersService {
         label: true,
       },
     },
+    assignedRoutes: {
+      select: {
+        id: true,
+        maTuyen: true,
+        tenTuyen: true,
+      },
+    },
     isActive: true,
     createdAt: true,
     updatedAt: true,
@@ -178,6 +324,7 @@ export class UsersService {
     email: string | null;
     roleCode: string;
     role: { code: string; label: string } | null;
+    assignedRoutes: { id: number; maTuyen: string; tenTuyen: string }[];
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -194,10 +341,37 @@ export class UsersService {
       email: user.email,
       role: user.roleCode,
       roleLabel: user.role?.label ?? user.roleCode,
+      routeIds: user.assignedRoutes.map((route) => route.id),
+      assignedRoutes: user.assignedRoutes,
       isActive: user.isActive,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  private normalizeRouteIds(routeIds?: number[]) {
+    if (!routeIds || !Array.isArray(routeIds)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(routeIds.filter((id) => Number.isInteger(id) && id > 0)),
+    );
+  }
+
+  private async ensureRoutesExist(routeIds: number[]) {
+    if (!routeIds.length) {
+      return;
+    }
+
+    const existingRoutes = await this.prisma.route.findMany({
+      where: { id: { in: routeIds } },
+      select: { id: true },
+    });
+
+    if (existingRoutes.length !== routeIds.length) {
+      throw new BadRequestException('Có tuyến đường không tồn tại');
+    }
   }
 
   private async ensureRoleExists(roleCode: string) {
@@ -205,5 +379,54 @@ export class UsersService {
     if (!role) {
       throw new BadRequestException('Quyền không tồn tại');
     }
+  }
+
+  private toText(value: unknown) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    return String(value).trim();
+  }
+
+  private toOptionalText(value: unknown) {
+    const normalized = this.toText(value);
+    return normalized || undefined;
+  }
+
+  private toOptionalNumberArray(value: unknown) {
+    const normalized = this.toText(value);
+    if (!normalized) {
+      return [];
+    }
+
+    const values = normalized
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => Number(item));
+
+    if (values.some((item) => !Number.isInteger(item) || item <= 0)) {
+      throw new BadRequestException(`routeIds không hợp lệ: ${normalized}`);
+    }
+
+    return Array.from(new Set(values));
+  }
+
+  private toOptionalBoolean(value: unknown) {
+    const normalized = this.toText(value).toLowerCase();
+    if (!normalized) {
+      return undefined;
+    }
+
+    if (['true', '1', 'yes', 'y'].includes(normalized)) {
+      return true;
+    }
+
+    if (['false', '0', 'no', 'n'].includes(normalized)) {
+      return false;
+    }
+
+    throw new BadRequestException(`isActive không hợp lệ: ${value}`);
   }
 }

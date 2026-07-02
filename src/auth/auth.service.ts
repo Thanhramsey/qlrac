@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { MenusService } from '../menus/menus.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtPayload } from './types/jwt-payload.type';
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly menusService: MenusService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -47,6 +49,18 @@ export class AuthService {
     const { accessToken, refreshToken } = await this.generateTokenPair(payload);
     await this.saveRefreshTokenHash(user.id, refreshToken);
 
+    const menusFromRole = await this.menusService.getMenusByRole(user.roleCode);
+    const menus = menusFromRole.map((parent) => ({
+      key: parent.menuKey,
+      label: parent.tenMenu,
+      children: (parent.children as Array<{ menuKey: string; tenMenu: string }>).map(
+        (child) => ({
+          key: child.menuKey,
+          label: child.tenMenu,
+        }),
+      ),
+    }));
+
     return {
       message: 'Đăng nhập thành công',
       accessToken,
@@ -60,17 +74,7 @@ export class AuthService {
         hoVaTen: user.hoVaTen,
         role: user.roleCode,
       },
-      menus: [
-        {
-          key: 'user-management',
-          label: 'Quản trị người dùng',
-          children: [
-            { key: 'users', label: 'Danh sách người dùng' },
-            { key: 'roles', label: 'Quản lý quyền' },
-            { key: 'user-permissions', label: 'Phân quyền người dùng' },
-          ],
-        },
-      ],
+      menus,
     };
   }
 

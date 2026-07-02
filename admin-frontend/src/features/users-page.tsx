@@ -10,13 +10,25 @@ import {
   Space,
   Table,
   Tag,
+  Upload,
   Typography,
   message,
 } from 'antd'
 import dayjs from 'dayjs'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
 import { apiClient } from '../api/axios.instance'
-import type { RoleOption, UserListItem, UserListResponse } from '../types'
+import type {
+  PagedResponse,
+  RoleOption,
+  RouteItem,
+  UserListItem,
+  UserListResponse,
+} from '../types'
 import { useEffect, useMemo, useState } from 'react'
 
 interface UsersPageProps {
@@ -34,6 +46,7 @@ type UserFormValues = {
   diaChi?: string
   email?: string
   role: string
+  routeIds?: number[]
   isActive?: boolean
 }
 
@@ -55,6 +68,7 @@ export function UsersPage({ roles }: UsersPageProps) {
     limit: 10,
     total: 0,
   })
+  const [routeOptions, setRouteOptions] = useState<RouteItem[]>([])
 
   const roleLabelMap = useMemo(
     () => Object.fromEntries(roles.map((item) => [item.code, item.label])),
@@ -84,7 +98,19 @@ export function UsersPage({ roles }: UsersPageProps) {
 
   useEffect(() => {
     void fetchUsers(1, 10)
+    void fetchRoutes()
   }, [])
+
+  const fetchRoutes = async () => {
+    try {
+      const response = await apiClient.get<PagedResponse<RouteItem>>('/routes', {
+        params: { page: 1, limit: 1000 },
+      })
+      setRouteOptions(response.data.data)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không tải được danh sách tuyến đường')
+    }
+  }
 
   const openCreateModal = () => {
     setEditingUser(null)
@@ -109,6 +135,7 @@ export function UsersPage({ roles }: UsersPageProps) {
       diaChi: user.diaChi ?? undefined,
       email: user.email ?? undefined,
       role: user.role,
+      routeIds: user.routeIds ?? user.assignedRoutes?.map((item) => item.id) ?? [],
       isActive: user.isActive,
       matKhau: undefined,
     })
@@ -128,6 +155,7 @@ export function UsersPage({ roles }: UsersPageProps) {
       const payload = {
         ...values,
         ngaySinh: values.ngaySinh ? values.ngaySinh.format('YYYY-MM-DD') : undefined,
+        routeIds: values.routeIds ?? [],
       }
 
       if (editingUser) {
@@ -175,9 +203,39 @@ export function UsersPage({ roles }: UsersPageProps) {
           <Typography.Title level={4} style={{ margin: 0 }}>
             Danh sách người dùng
           </Typography.Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-            Thêm người dùng
-          </Button>
+          <Space>
+            <Upload
+              accept=".xlsx,.xls,.csv"
+              showUploadList={false}
+              beforeUpload={(file) => {
+                const formData = new FormData()
+                formData.append('file', file)
+
+                void (async () => {
+                  try {
+                    const response = await apiClient.post('/users/import', formData, {
+                      headers: {
+                        'Content-Type': 'multipart/form-data',
+                      },
+                    })
+                    message.success(response.data?.message ?? 'Import người dùng thành công')
+                    void fetchUsers(1, pagination.limit)
+                  } catch (error) {
+                    message.error(
+                      error instanceof Error ? error.message : 'Import người dùng thất bại',
+                    )
+                  }
+                })()
+
+                return false
+              }}
+            >
+              <Button icon={<UploadOutlined />}>Import Excel</Button>
+            </Upload>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Thêm người dùng
+            </Button>
+          </Space>
         </Space>
 
         <Table<UserListItem>
@@ -235,6 +293,15 @@ export function UsersPage({ roles }: UsersPageProps) {
               ),
             },
             {
+              title: 'Tuyến phụ trách',
+              dataIndex: 'assignedRoutes',
+              width: 260,
+              render: (routes: UserListItem['assignedRoutes']) =>
+                routes && routes.length
+                  ? routes.map((item) => item.tenTuyen).join(', ')
+                  : '-',
+            },
+            {
               title: 'Trạng thái',
               dataIndex: 'isActive',
               width: 120,
@@ -277,7 +344,7 @@ export function UsersPage({ roles }: UsersPageProps) {
         okText="Lưu"
         cancelText="Hủy"
         okButtonProps={{ loading: saving }}
-        width={760}
+        width={980}
       >
         <Form
           layout="vertical"
@@ -337,6 +404,19 @@ export function UsersPage({ roles }: UsersPageProps) {
                 options={roles.map((item) => ({
                   value: item.code,
                   label: item.label,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item label="Tuyến phụ trách" name="routeIds" className="full-col">
+              <Select
+                mode="multiple"
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Chọn một hoặc nhiều tuyến đường"
+                options={routeOptions.map((item) => ({
+                  value: item.id,
+                  label: `${item.tenTuyen} (${item.maTuyen})`,
                 }))}
               />
             </Form.Item>

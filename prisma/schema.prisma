@@ -50,13 +50,63 @@ model Route {
   maTuyen    String       @unique @map("ma_tuyen")
   tenTuyen   String       @map("ten_tuyen")
   khuVuc     String       @map("khu_vuc")
+  localityId Int?         @map("locality_id")
+  staffId    Int?         @map("staff_id")
   createdAt  DateTime     @default(now()) @map("created_at")
   updatedAt  DateTime     @updatedAt @map("updated_at")
 
   households Household[]
   collections Collection[]
+  locality   Locality?    @relation(fields: [localityId], references: [id])
+  staff      User?        @relation("route_staff", fields: [staffId], references: [id])
 
+  @@index([localityId])
+  @@index([staffId])
   @@map("routes")
+}
+
+model Province {
+  id        Int       @id @default(autoincrement()) @map("id")
+  maTinh    String    @unique @map("ma_tinh")
+  tenTinh   String    @map("ten_tinh")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  wards Ward[]
+
+  @@map("provinces")
+}
+
+model Ward {
+  id         Int       @id @default(autoincrement()) @map("id")
+  provinceId Int       @map("province_id")
+  maPhuongXa String    @map("ma_phuong_xa")
+  tenPhuongXa String   @map("ten_phuong_xa")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  province   Province  @relation(fields: [provinceId], references: [id])
+  localities Locality[]
+
+  @@unique([provinceId, maPhuongXa])
+  @@index([provinceId])
+  @@map("wards")
+}
+
+model Locality {
+  id         Int      @id @default(autoincrement()) @map("id")
+  wardId     Int      @map("ward_id")
+  maThonXomTo String  @map("ma_thon_xom_to")
+  tenThonXomTo String @map("ten_thon_xom_to")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  ward Ward   @relation(fields: [wardId], references: [id])
+  routes Route[]
+
+  @@unique([wardId, maThonXomTo])
+  @@index([wardId])
+  @@map("localities")
 }
 
 model Collection {
@@ -96,6 +146,21 @@ model Invoice {
   @@map("invoices")
 }
 
+model ServiceCatalog {
+  id          Int      @id @default(autoincrement()) @map("id")
+  maDichVu    String   @unique @map("ma_dich_vu")
+  tenDichVu   String   @map("ten_dich_vu")
+  giaDichVu   Decimal  @db.Decimal(18, 2) @map("gia_dich_vu")
+  thuePhanTram Decimal @db.Decimal(5, 2) @map("thue_phan_tram")
+  isActive    Boolean  @default(true) @map("is_active")
+  ghiChu      String?  @map("ghi_chu")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("service_catalogs")
+}
+
 model Role {
   code      String   @id @map("code")
   label     String   @map("label")
@@ -104,9 +169,44 @@ model Role {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users User[]
+  users               User[]
+  roleMenuPermissions RoleMenuPermission[]
 
   @@map("roles")
+}
+
+model Menu {
+  id         Int      @id @default(autoincrement()) @map("id")
+  menuKey    String   @unique @map("menu_key")
+  tenMenu    String   @map("ten_menu")
+  routePath  String?  @map("route_path")
+  parentId   Int?     @map("parent_id")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  parent              Menu?                @relation("menu_hierarchy", fields: [parentId], references: [id])
+  children            Menu[]               @relation("menu_hierarchy")
+  roleMenuPermissions RoleMenuPermission[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("menus")
+}
+
+model RoleMenuPermission {
+  roleCode  String   @map("role_code")
+  menuId    Int      @map("menu_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  role Role @relation(fields: [roleCode], references: [code])
+  menu Menu @relation(fields: [menuId], references: [id])
+
+  @@id([roleCode, menuId])
+  @@index([menuId])
+  @@map("role_menu_permissions")
 }
 
 model User {
@@ -127,6 +227,7 @@ model User {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   role Role @relation(fields: [roleCode], references: [code])
+  assignedRoutes Route[] @relation("route_staff")
 
   @@index([soDienThoai])
   @@index([roleCode])

@@ -9,4 +9,5 @@ export class CreateUserDto {
   diaChi?: string;
   email?: string;
   role?: string;
+  routeIds?: number[];
 }

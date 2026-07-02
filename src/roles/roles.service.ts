@@ -77,8 +77,7 @@ export class RolesService {
 
   getUserPermissionPlaceholder() {
     return {
-      message:
-        'Tính năng phân quyền người dùng sẽ phát triển ở giai đoạn tiếp theo',
+      message: 'Dùng API /menus và /menus/role/:roleCode để quản lý phân quyền menu theo role',
     };
   }
 }

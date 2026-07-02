@@ -1,0 +1,3 @@
+taiKhoan,matKhau,hoVaTen,soDienThoai,soGiayTo,role,routeIds,isActive
+imp_user_01,123456,User Import 01,0911222333,079200011111,STAFF,"1,2",true
+imp_user_02,123456,User Import 02,0911222444,079200022222,STAFF,"2",true

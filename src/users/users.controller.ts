@@ -3,13 +3,18 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   UseGuards,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -38,6 +43,14 @@ export class UsersController {
   @Roles('ADMIN')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('import')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  importFromExcel(@UploadedFile() file?: Express.Multer.File) {
+    return this.usersService.importFromExcel(file);
   }
 
   @Patch(':id')

@@ -1,5 +1,4 @@
 import {
-  Alert,
   Avatar,
   Dropdown,
   Layout,
@@ -20,13 +19,41 @@ import {
   setUnauthorizedHandler,
 } from './api/axios.instance'
 import { LoginPage } from './features/login-page'
+import { LocationsPage } from './features/locations-page'
 import { RolesPage } from './features/roles-page'
+import { ServiceCatalogsPage } from './features/service-catalogs-page'
+import { UserPermissionsPage } from './features/user-permissions-page'
 import { UsersPage } from './features/users-page'
 import type { LoginResponse, RoleOption } from './types'
 import './App.css'
 
 const { Header, Content, Sider } = Layout
 const AUTH_SESSION_KEY = 'auth_session'
+
+function normalizeMenus(menus: LoginResponse['menus']) {
+  return (menus ?? [])
+    .filter((menu) => Boolean(menu?.key) && Boolean(menu?.label))
+    .map((menu) => ({
+      ...menu,
+      children: (menu.children ?? []).filter(
+        (child) => Boolean(child?.key) && Boolean(child?.label),
+      ),
+    }))
+}
+
+function getFirstAvailableMenuKey(menus: LoginResponse['menus']) {
+  for (const parent of menus ?? []) {
+    if (parent.children && parent.children.length > 0) {
+      return parent.children[0].key
+    }
+
+    if (parent.key) {
+      return parent.key
+    }
+  }
+
+  return ''
+}
 
 function updateStoredAccessToken(accessToken: string) {
   const rawSession = localStorage.getItem(AUTH_SESSION_KEY)
@@ -66,13 +93,12 @@ function clearAuthState(setSession: (session: LoginResponse | null) => void) {
 
 function App() {
   const [session, setSession] = useState<LoginResponse | null>(null)
-  const [activeMenuKey, setActiveMenuKey] = useState('users')
+  const [activeMenuKey, setActiveMenuKey] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
 
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [rolesLoading, setRolesLoading] = useState(false)
-  const [permissionsMessage, setPermissionsMessage] = useState('')
 
   useEffect(() => {
     const rawSession = localStorage.getItem(AUTH_SESSION_KEY)
@@ -83,9 +109,16 @@ function App() {
     try {
       const parsed = JSON.parse(rawSession) as LoginResponse
       if (parsed?.accessToken && parsed?.refreshToken && parsed?.user && parsed?.menus) {
+        const normalizedSession: LoginResponse = {
+          ...parsed,
+          menus: normalizeMenus(parsed.menus),
+        }
+        const initialMenuKey = getFirstAvailableMenuKey(normalizedSession.menus)
         authTokenStorage.set(parsed.accessToken)
         refreshTokenStorage.set(parsed.refreshToken)
-        setSession(parsed)
+        setSession(normalizedSession)
+        setActiveMenuKey(initialMenuKey)
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(normalizedSession))
       }
     } catch {
       localStorage.removeItem(AUTH_SESSION_KEY)
@@ -97,7 +130,7 @@ function App() {
     setUnauthorizedHandler(() => {
       clearAuthState(setSession)
       setRoles([])
-      setActiveMenuKey('users')
+      setActiveMenuKey('')
       message.warning('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
     })
 
@@ -140,13 +173,9 @@ function App() {
   const loadRolesAndPermissions = async () => {
     setRolesLoading(true)
     try {
-      const [rolesResponse, permissionsResponse] = await Promise.all([
-        apiClient.get<RoleOption[]>('/roles'),
-        apiClient.get<{ message: string }>('/roles/user-permissions'),
-      ])
+      const rolesResponse = await apiClient.get<RoleOption[]>('/roles')
 
       setRoles(rolesResponse.data)
-      setPermissionsMessage(permissionsResponse.data.message)
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Không tải được dữ liệu quyền')
     } finally {
@@ -155,9 +184,19 @@ function App() {
   }
 
   useEffect(() => {
-    if (session) {
+    const canManageRoles = session?.menus?.some((parent) =>
+      (parent.children ?? []).some((child) =>
+        ['users', 'roles', 'user-permissions'].includes(child.key),
+      ),
+    )
+
+    if (session && canManageRoles) {
       void loadRolesAndPermissions()
+      return
     }
+
+    setRoles([])
+    setRolesLoading(false)
   }, [session])
 
   const handleLogin = async (values: {
@@ -168,11 +207,16 @@ function App() {
     setLoginError(null)
     try {
       const response = await apiClient.post<LoginResponse>('/auth/login', values)
-      setSession(response.data)
-      authTokenStorage.set(response.data.accessToken)
-      refreshTokenStorage.set(response.data.refreshToken)
-      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(response.data))
-      setActiveMenuKey('users')
+      const normalizedSession: LoginResponse = {
+        ...response.data,
+        menus: normalizeMenus(response.data.menus),
+      }
+      const initialMenuKey = getFirstAvailableMenuKey(normalizedSession.menus)
+      setSession(normalizedSession)
+      authTokenStorage.set(normalizedSession.accessToken)
+      refreshTokenStorage.set(normalizedSession.refreshToken)
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(normalizedSession))
+      setActiveMenuKey(initialMenuKey)
       message.success('Đăng nhập thành công')
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : 'Đăng nhập thất bại')
@@ -204,7 +248,7 @@ function App() {
           className="side-menu"
           items={parentMenus}
           selectedKeys={[activeMenuKey]}
-          defaultOpenKeys={['user-management']}
+          defaultOpenKeys={session?.menus?.map((menu) => menu.key) ?? []}
           onClick={({ key }) => setActiveMenuKey(key)}
         />
       </Sider>
@@ -227,7 +271,7 @@ function App() {
                   onClick: () => {
                     clearAuthState(setSession)
                     setRoles([])
-                    setActiveMenuKey('users')
+                    setActiveMenuKey('')
                   },
                 },
               ],
@@ -255,14 +299,15 @@ function App() {
             />
           ) : null}
           {!rolesLoading && activeMenuKey === 'user-permissions' ? (
-            <Alert
-              type="info"
-              showIcon
-              message="Phân quyền người dùng"
-              description={permissionsMessage}
-              className="page-card"
+            <UserPermissionsPage roles={roles} />
+          ) : null}
+          {!rolesLoading && activeMenuKey === 'locations' ? (
+            <LocationsPage
+              visible={!rolesLoading && activeMenuKey === 'locations'}
+              currentUserRole={session.user.role}
             />
           ) : null}
+          {!rolesLoading && activeMenuKey === 'service-catalogs' ? <ServiceCatalogsPage /> : null}
         </Content>
       </Layout>
     </Layout>

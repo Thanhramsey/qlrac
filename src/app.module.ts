@@ -10,6 +10,11 @@ import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
 import { SecurityModule } from './auth/security.module';
+import { ProvincesModule } from './provinces/provinces.module';
+import { WardsModule } from './wards/wards.module';
+import { LocalitiesModule } from './localities/localities.module';
+import { ServiceCatalogsModule } from './service-catalogs/service-catalogs.module';
+import { MenusModule } from './menus/menus.module';
 
 @Module({
   imports: [
@@ -21,6 +26,11 @@ import { SecurityModule } from './auth/security.module';
     InvoicesModule,
     UsersModule,
     RolesModule,
+    ProvincesModule,
+    WardsModule,
+    LocalitiesModule,
+    ServiceCatalogsModule,
+    MenusModule,
     AuthModule,
   ],
   controllers: [AppController],

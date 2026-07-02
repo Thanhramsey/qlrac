@@ -35,6 +35,12 @@ export interface UserListItem {
   email?: string | null
   role: UserRole
   roleLabel?: string
+  routeIds?: number[]
+  assignedRoutes?: Array<{
+    id: number
+    maTuyen: string
+    tenTuyen: string
+  }>
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -55,4 +61,123 @@ export interface RoleOption {
   label: string
   moTa?: string | null
   isActive?: boolean
+}
+
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface PagedResponse<T> {
+  data: T[]
+  pagination: PaginationMeta
+}
+
+export interface ProvinceItem {
+  id: number
+  maTinh: string
+  tenTinh: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WardItem {
+  id: number
+  provinceId: number
+  maPhuongXa: string
+  tenPhuongXa: string
+  province?: {
+    id: number
+    maTinh: string
+    tenTinh: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LocalityItem {
+  id: number
+  wardId: number
+  maThonXomTo: string
+  tenThonXomTo: string
+  ward?: {
+    id: number
+    maPhuongXa: string
+    tenPhuongXa: string
+    province?: {
+      id: number
+      maTinh: string
+      tenTinh: string
+    }
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RouteItem {
+  id: number
+  maTuyen: string
+  tenTuyen: string
+  khuVuc: string
+  localityId?: number | null
+  staffId?: number | null
+  locality?: {
+    id: number
+    maThonXomTo: string
+    tenThonXomTo: string
+    ward?: {
+      id: number
+      maPhuongXa: string
+      tenPhuongXa: string
+      province?: {
+        id: number
+        maTinh: string
+        tenTinh: string
+      }
+    }
+  } | null
+  staff?: {
+    id: number
+    taiKhoan: string
+    hoVaTen: string
+    roleCode: string
+    isActive?: boolean
+  } | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ServiceCatalogItem {
+  id: number
+  maDichVu: string
+  tenDichVu: string
+  giaDichVu: number
+  thuePhanTram: number
+  isActive: boolean
+  ghiChu?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MenuItemNode {
+  id: number
+  menuKey: string
+  tenMenu: string
+  routePath?: string | null
+  parentId?: number | null
+  sortOrder: number
+  isActive: boolean
+  children?: MenuItemNode[]
+  parent?: {
+    id: number
+    menuKey: string
+    tenMenu: string
+  } | null
+}
+
+export interface RoleMenuResponse {
+  roleCode: string
+  menuIds: number[]
 }

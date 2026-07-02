@@ -27,6 +27,19 @@
   border-inline-end: none !important;
 }
 
+.side-menu .ant-menu-item,
+.side-menu .ant-menu-submenu-title,
+.side-menu .ant-menu-title-content,
+.side-menu .ant-menu-submenu-arrow,
+.side-menu .anticon {
+  color: #eef6fb !important;
+}
+
+.side-menu .ant-menu-item:hover,
+.side-menu .ant-menu-submenu-title:hover {
+  color: #ffffff !important;
+}
+
 .side-menu .ant-menu-item-selected,
 .side-menu .ant-menu-submenu-selected > .ant-menu-submenu-title {
   background: rgba(255, 255, 255, 0.16) !important;
@@ -104,6 +117,19 @@
   background: linear-gradient(120deg, #145267, #227694) !important;
 }
 
+.excel-green-btn {
+  background: #217346 !important;
+  border-color: #1f6b41 !important;
+  color: #ffffff !important;
+}
+
+.excel-green-btn:hover,
+.excel-green-btn:focus {
+  background: #1c613b !important;
+  border-color: #195b37 !important;
+  color: #ffffff !important;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -112,6 +138,39 @@
 
 .form-grid .full-col {
   grid-column: 1 / -1;
+}
+
+.permissions-layout .permission-card {
+  border-radius: 14px !important;
+  border: 1px solid #d6e3ea;
+  box-shadow: 0 10px 24px rgba(22, 58, 74, 0.08);
+}
+
+.permissions-layout .permission-card .ant-card-head {
+  background: linear-gradient(120deg, #f5f8fa 0%, #edf4f7 100%);
+  border-bottom: 1px solid #d7e3ea;
+}
+
+.permission-card-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: #4a6a79 !important;
+}
+
+.permission-table .ant-table-thead > tr > th {
+  background: #eef5f8 !important;
+  color: #254655;
+  font-weight: 700;
+  border-bottom: 1px solid #d9e6ed;
+}
+
+.permission-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: rgba(52, 128, 156, 0.14) !important;
+}
+
+.permission-table .ant-table-tbody > tr:hover > td {
+  background: rgba(33, 109, 132, 0.08) !important;
 }
 
 @media (max-width: 768px) {

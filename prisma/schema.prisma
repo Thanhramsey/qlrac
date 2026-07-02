@@ -4,18 +4,124 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
-model Customer {
-  id          Int      @id @default(autoincrement())
-  maHoDan     String   @unique
-  tenChuHo    String
-  diaChi      String
-  soDienThoai String
-  createdAt   DateTime @default(now())
+
+enum CollectionStatus {
+  PENDING
+  COMPLETED
+  MISSED
+
+  @@map("collection_status")
+}
+
+enum InvoicePaymentStatus {
+  UNPAID
+  PAID
+  OVERDUE
+
+  @@map("invoice_payment_status")
+}
+
+enum UserRole {
+  ADMIN
+  ADMIN_LEVEL_2
+  ACCOUNTANT
+  STAFF
+
+  @@map("user_role")
+}
+
+model Household {
+  id           Int          @id @default(autoincrement()) @map("id")
+  maHoDan      String       @unique @map("ma_ho_dan")
+  tenChuHo     String       @map("ten_chu_ho")
+  diaChi       String       @map("dia_chi")
+  soDienThoai  String       @map("so_dien_thoai")
+  tuyenThuRacId Int         @map("tuyen_thu_rac_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  tuyenThuRac  Route        @relation(fields: [tuyenThuRacId], references: [id])
+  collections  Collection[]
+  invoices     Invoice[]
+
+  @@index([tuyenThuRacId])
+  @@map("households")
+}
+
+model Route {
+  id         Int          @id @default(autoincrement()) @map("id")
+  maTuyen    String       @unique @map("ma_tuyen")
+  tenTuyen   String       @map("ten_tuyen")
+  khuVuc     String       @map("khu_vuc")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  households Household[]
+  collections Collection[]
+
+  @@map("routes")
+}
+
+model Collection {
+  id          Int              @id @default(autoincrement()) @map("id")
+  householdId Int              @map("household_id")
+  routeId     Int              @map("route_id")
+  ngayThuGom  DateTime         @map("ngay_thu_gom")
+  trangThai   CollectionStatus @default(PENDING) @map("trang_thai")
+  ghiChu      String?          @map("ghi_chu")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  household Household @relation(fields: [householdId], references: [id])
+  route     Route     @relation(fields: [routeId], references: [id])
+
+  @@index([householdId])
+  @@index([routeId])
+  @@index([ngayThuGom, trangThai])
+  @@map("collections")
+}
+
+model Invoice {
+  id                 Int                  @id @default(autoincrement()) @map("id")
+  householdId        Int                  @map("household_id")
+  kyHoaDon           String               @map("ky_hoa_don")
+  tongTien           Decimal              @db.Decimal(18, 2) @map("tong_tien")
+  thue               Decimal              @db.Decimal(18, 2) @map("thue")
+  trangThaiThanhToan InvoicePaymentStatus @default(UNPAID) @map("trang_thai_thanh_toan")
+  hanThanhToan       DateTime             @map("han_thanh_toan")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  household Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId])
+  @@index([kyHoaDon, trangThaiThanhToan])
+  @@map("invoices")
+}
+
+model User {
+  id          Int       @id @default(autoincrement()) @map("id")
+  taiKhoan    String    @unique @map("tai_khoan")
+  matKhauHash String    @map("mat_khau_hash")
+  hoVaTen     String    @map("ho_va_ten")
+  ngaySinh    DateTime? @map("ngay_sinh")
+  gioiTinh    String?   @map("gioi_tinh")
+  soDienThoai String    @map("so_dien_thoai")
+  soGiayTo    String    @unique @map("so_giay_to")
+  diaChi      String?   @map("dia_chi")
+  email       String?   @map("email")
+  role        UserRole  @default(STAFF) @map("role")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([soDienThoai])
+  @@index([role])
+  @@map("users")
 }

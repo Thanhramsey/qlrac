@@ -20,6 +20,7 @@ import {
 } from './api/axios.instance'
 import { LoginPage } from './features/login-page'
 import { LocationsPage } from './features/locations-page'
+import { HouseholdsPage } from './features/households-page'
 import { RolesPage } from './features/roles-page'
 import { ServiceCatalogsPage } from './features/service-catalogs-page'
 import { UserPermissionsPage } from './features/user-permissions-page'
@@ -186,7 +187,7 @@ function App() {
   useEffect(() => {
     const canManageRoles = session?.menus?.some((parent) =>
       (parent.children ?? []).some((child) =>
-        ['users', 'roles', 'user-permissions'].includes(child.key),
+        ['users', 'roles', 'user-permissions', 'households'].includes(child.key),
       ),
     )
 
@@ -291,6 +292,7 @@ function App() {
           ) : null}
 
           {!rolesLoading && activeMenuKey === 'users' ? <UsersPage roles={roles} /> : null}
+          {!rolesLoading && activeMenuKey === 'households' ? <HouseholdsPage /> : null}
           {!rolesLoading && activeMenuKey === 'roles' ? (
             <RolesPage
               roles={roles}

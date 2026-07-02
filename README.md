@@ -31,6 +31,33 @@
 $ npm install
 ```
 
+## Database setup (migrate + seed)
+
+```bash
+# run all migrations and seed sample data in one command
+$ npm run db:setup
+```
+
+Command above will create sample data including:
+- Roles: `ADMIN`, `ADMIN_LEVEL_2`, `STAFF`, `ACCOUNTANT`
+- Dynamic menus + role-menu permissions
+- Sample province/ward/locality/routes
+- Sample service catalogs
+- Sample households with service type and route
+- Sample users and route assignment
+
+Default login accounts (password: `123456`):
+- `admin01`
+- `adminlv2`
+- `staff01`
+- `account01`
+
+If you only want to re-seed data:
+
+```bash
+$ npm run db:seed
+```
+
 ## Compile and run the project
 
 ```bash

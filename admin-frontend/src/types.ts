@@ -161,6 +161,34 @@ export interface ServiceCatalogItem {
   updatedAt: string
 }
 
+export interface HouseholdItem {
+  id: number
+  maHoDan: string
+  tenChuHo: string
+  diaChi: string
+  soDienThoai: string
+  soGiayTo: string
+  ngayCapGiayTo?: string | null
+  maSoThue?: string | null
+  serviceCatalogId?: number | null
+  tuyenThuRacId: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  serviceCatalog?: {
+    id: number
+    maDichVu: string
+    tenDichVu: string
+    giaDichVu: number
+    thuePhanTram: number
+  } | null
+  tuyenThuRac?: {
+    id: number
+    maTuyen: string
+    tenTuyen: string
+  }
+}
+
 export interface MenuItemNode {
   id: number
   menuKey: string

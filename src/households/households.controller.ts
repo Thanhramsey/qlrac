@@ -3,13 +3,18 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -27,8 +32,19 @@ export class HouseholdsController {
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
+    @Query('serviceCatalogId') serviceCatalogId?: string,
+    @Query('tuyenThuRacId') tuyenThuRacId?: string,
+    @Query('tenChuHo') tenChuHo?: string,
+    @Query('diaChi') diaChi?: string,
   ) {
-    return this.householdsService.findAll(Number(page), Number(limit));
+    return this.householdsService.findAll(
+      Number(page),
+      Number(limit),
+      serviceCatalogId ? Number(serviceCatalogId) : undefined,
+      tuyenThuRacId ? Number(tuyenThuRacId) : undefined,
+      tenChuHo,
+      diaChi,
+    );
   }
 
   @Get(':id')
@@ -39,6 +55,14 @@ export class HouseholdsController {
   @Post()
   create(@Body() createHouseholdDto: CreateHouseholdDto) {
     return this.householdsService.create(createHouseholdDto);
+  }
+
+  @Post('import')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  importFromExcel(@UploadedFile() file?: Express.Multer.File) {
+    return this.householdsService.importFromExcel(file);
   }
 
   @Patch(':id')

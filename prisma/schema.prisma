@@ -28,20 +28,28 @@ enum InvoicePaymentStatus {
 }
 
 model Household {
-  id           Int          @id @default(autoincrement()) @map("id")
-  maHoDan      String       @unique @map("ma_ho_dan")
-  tenChuHo     String       @map("ten_chu_ho")
-  diaChi       String       @map("dia_chi")
-  soDienThoai  String       @map("so_dien_thoai")
-  tuyenThuRacId Int         @map("tuyen_thu_rac_id")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  id              Int             @id @default(autoincrement()) @map("id")
+  maHoDan         String          @unique @map("ma_ho_dan")
+  tenChuHo        String          @map("ten_chu_ho")
+  diaChi          String          @map("dia_chi")
+  soDienThoai     String          @map("so_dien_thoai")
+  soGiayTo        String          @unique @map("so_giay_to")
+  ngayCapGiayTo   DateTime?       @map("ngay_cap_giay_to")
+  maSoThue        String?         @map("ma_so_thue")
+  serviceCatalogId Int?           @map("service_catalog_id")
+  tuyenThuRacId   Int             @map("tuyen_thu_rac_id")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
-  tuyenThuRac  Route        @relation(fields: [tuyenThuRacId], references: [id])
-  collections  Collection[]
-  invoices     Invoice[]
+  serviceCatalog  ServiceCatalog? @relation(fields: [serviceCatalogId], references: [id])
+  tuyenThuRac     Route           @relation(fields: [tuyenThuRacId], references: [id])
+  collections     Collection[]
+  invoices        Invoice[]
 
+  @@index([serviceCatalogId])
   @@index([tuyenThuRacId])
+  @@index([isActive])
   @@map("households")
 }
 
@@ -156,6 +164,8 @@ model ServiceCatalog {
   ghiChu      String?  @map("ghi_chu")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
+  households Household[]
 
   @@index([isActive])
   @@map("service_catalogs")

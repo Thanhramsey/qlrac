@@ -5,6 +5,7 @@ import {
   Form,
   Input,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -13,7 +14,7 @@ import {
   message,
 } from 'antd'
 import dayjs from 'dayjs'
-import { PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { apiClient } from '../api/axios.instance'
 import type { RoleOption, UserListItem, UserListResponse } from '../types'
 import { useEffect, useMemo, useState } from 'react'
@@ -22,9 +23,9 @@ interface UsersPageProps {
   roles: RoleOption[]
 }
 
-type CreateUserFormValues = {
+type UserFormValues = {
   taiKhoan: string
-  matKhau: string
+  matKhau?: string
   hoVaTen: string
   ngaySinh?: dayjs.Dayjs
   gioiTinh?: string
@@ -32,7 +33,8 @@ type CreateUserFormValues = {
   soGiayTo: string
   diaChi?: string
   email?: string
-  role: RoleOption['code']
+  role: string
+  isActive?: boolean
 }
 
 const genderOptions = [
@@ -41,19 +43,13 @@ const genderOptions = [
   { value: 'Khac', label: 'Khác' },
 ]
 
-const roleColor: Record<RoleOption['code'], string> = {
-  ADMIN: 'red',
-  ADMIN_LEVEL_2: 'volcano',
-  ACCOUNTANT: 'gold',
-  STAFF: 'blue',
-}
-
 export function UsersPage({ roles }: UsersPageProps) {
-  const [form] = Form.useForm<CreateUserFormValues>()
+  const [form] = Form.useForm<UserFormValues>()
   const [listData, setListData] = useState<UserListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserListItem | null>(null)
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -78,7 +74,9 @@ export function UsersPage({ roles }: UsersPageProps) {
         total: response.data.pagination.total,
       })
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Không tải được danh sách người dùng')
+      message.error(
+        error instanceof Error ? error.message : 'Không tải được danh sách người dùng',
+      )
     } finally {
       setLoading(false)
     }
@@ -88,26 +86,85 @@ export function UsersPage({ roles }: UsersPageProps) {
     void fetchUsers(1, 10)
   }, [])
 
-  const onCreateUser = async () => {
+  const openCreateModal = () => {
+    setEditingUser(null)
+    setModalOpen(true)
+    form.resetFields()
+    form.setFieldsValue({
+      role: roles[0]?.code ?? 'STAFF',
+      isActive: true,
+    })
+  }
+
+  const openEditModal = (user: UserListItem) => {
+    setEditingUser(user)
+    setModalOpen(true)
+    form.setFieldsValue({
+      taiKhoan: user.taiKhoan,
+      hoVaTen: user.hoVaTen,
+      ngaySinh: user.ngaySinh ? dayjs(user.ngaySinh) : undefined,
+      gioiTinh: user.gioiTinh ?? undefined,
+      soDienThoai: user.soDienThoai,
+      soGiayTo: user.soGiayTo,
+      diaChi: user.diaChi ?? undefined,
+      email: user.email ?? undefined,
+      role: user.role,
+      isActive: user.isActive,
+      matKhau: undefined,
+    })
+  }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setEditingUser(null)
+    form.resetFields()
+  }
+
+  const onSaveUser = async () => {
     try {
       const values = await form.validateFields()
       setSaving(true)
 
-      await apiClient.post('/users', {
+      const payload = {
         ...values,
         ngaySinh: values.ngaySinh ? values.ngaySinh.format('YYYY-MM-DD') : undefined,
-      })
+      }
 
-      message.success('Tạo người dùng thành công')
-      setModalOpen(false)
-      form.resetFields()
-      void fetchUsers(1, pagination.limit)
+      if (editingUser) {
+        if (!payload.matKhau) {
+          delete payload.matKhau
+        }
+
+        await apiClient.patch(`/users/${editingUser.id}`, payload)
+        message.success('Cập nhật người dùng thành công')
+      } else {
+        if (!payload.matKhau) {
+          message.error('Mật khẩu là bắt buộc khi tạo mới người dùng')
+          return
+        }
+
+        await apiClient.post('/users', payload)
+        message.success('Tạo người dùng thành công')
+      }
+
+      closeModal()
+      void fetchUsers(pagination.page, pagination.limit)
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message)
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const onDeleteUser = async (id: number) => {
+    try {
+      await apiClient.delete(`/users/${id}`)
+      message.success('Xóa người dùng thành công')
+      void fetchUsers(pagination.page, pagination.limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Xóa người dùng thất bại')
     }
   }
 
@@ -118,7 +175,7 @@ export function UsersPage({ roles }: UsersPageProps) {
           <Typography.Title level={4} style={{ margin: 0 }}>
             Danh sách người dùng
           </Typography.Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
             Thêm người dùng
           </Button>
         </Space>
@@ -127,7 +184,7 @@ export function UsersPage({ roles }: UsersPageProps) {
           rowKey="id"
           loading={loading}
           dataSource={listData}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1340 }}
           pagination={{
             current: pagination.page,
             pageSize: pagination.limit,
@@ -144,45 +201,89 @@ export function UsersPage({ roles }: UsersPageProps) {
               title: 'Ngày sinh',
               dataIndex: 'ngaySinh',
               width: 120,
-              render: (value: string | null) => (value ? dayjs(value).format('DD/MM/YYYY') : '-'),
+              render: (value: string | null) =>
+                value ? dayjs(value).format('DD/MM/YYYY') : '-',
             },
-            { title: 'Giới tính', dataIndex: 'gioiTinh', width: 100, render: (value: string | null) => value ?? '-' },
+            {
+              title: 'Giới tính',
+              dataIndex: 'gioiTinh',
+              width: 100,
+              render: (value: string | null) => value ?? '-',
+            },
             { title: 'Số điện thoại', dataIndex: 'soDienThoai', width: 130 },
             { title: 'Số giấy tờ', dataIndex: 'soGiayTo', width: 150 },
-            { title: 'Địa chỉ', dataIndex: 'diaChi', width: 220, render: (value: string | null) => value ?? '-' },
-            { title: 'Email', dataIndex: 'email', width: 180, render: (value: string | null) => value ?? '-' },
+            {
+              title: 'Địa chỉ',
+              dataIndex: 'diaChi',
+              width: 220,
+              render: (value: string | null) => value ?? '-',
+            },
+            {
+              title: 'Email',
+              dataIndex: 'email',
+              width: 180,
+              render: (value: string | null) => value ?? '-',
+            },
             {
               title: 'Quyền',
               dataIndex: 'role',
-              width: 150,
-              render: (value: RoleOption['code']) => (
-                <Tag color={roleColor[value]}>{roleLabelMap[value] ?? value}</Tag>
+              width: 170,
+              render: (value: string, record) => (
+                <Tag color={record.isActive ? 'blue' : 'default'}>
+                  {record.roleLabel ?? roleLabelMap[value] ?? value}
+                </Tag>
               ),
             },
             {
               title: 'Trạng thái',
               dataIndex: 'isActive',
               width: 120,
-              render: (value: boolean) => (value ? <Tag color="green">Kích hoạt</Tag> : <Tag>Khóa</Tag>),
+              render: (value: boolean) =>
+                value ? <Tag color="green">Kích hoạt</Tag> : <Tag>Khóa</Tag>,
+            },
+            {
+              title: 'Thao tác',
+              key: 'actions',
+              fixed: 'right',
+              width: 140,
+              render: (_, record) => (
+                <Space>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => openEditModal(record)}
+                  />
+                  <Popconfirm
+                    title="Xóa người dùng"
+                    description="Bạn chắc chắn muốn xóa người dùng này?"
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    onConfirm={() => void onDeleteUser(record.id)}
+                  >
+                    <Button danger size="small" icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </Space>
+              ),
             },
           ]}
         />
       </Space>
 
       <Modal
-        title="Thêm người dùng"
+        title={editingUser ? 'Cập nhật người dùng' : 'Thêm người dùng'}
         open={modalOpen}
-        onCancel={() => {
-          setModalOpen(false)
-          form.resetFields()
-        }}
-        onOk={() => void onCreateUser()}
+        onCancel={closeModal}
+        onOk={() => void onSaveUser()}
         okText="Lưu"
         cancelText="Hủy"
         okButtonProps={{ loading: saving }}
         width={760}
       >
-        <Form layout="vertical" form={form} initialValues={{ role: 'STAFF' }}>
+        <Form
+          layout="vertical"
+          form={form}
+          initialValues={{ role: roles[0]?.code ?? 'STAFF', isActive: true }}
+        >
           <div className="form-grid">
             <Form.Item
               label="Tài khoản"
@@ -192,9 +293,9 @@ export function UsersPage({ roles }: UsersPageProps) {
               <Input />
             </Form.Item>
             <Form.Item
-              label="Mật khẩu"
+              label={editingUser ? 'Mật khẩu mới (không bắt buộc)' : 'Mật khẩu'}
               name="matKhau"
-              rules={[{ required: true, message: 'Bắt buộc nhập mật khẩu' }]}
+              rules={editingUser ? [] : [{ required: true, message: 'Bắt buộc nhập mật khẩu' }]}
             >
               <Input.Password />
             </Form.Item>
@@ -237,6 +338,14 @@ export function UsersPage({ roles }: UsersPageProps) {
                   value: item.code,
                   label: item.label,
                 }))}
+              />
+            </Form.Item>
+            <Form.Item label="Trạng thái" name="isActive">
+              <Select
+                options={[
+                  { value: true, label: 'Kích hoạt' },
+                  { value: false, label: 'Khóa' },
+                ]}
               />
             </Form.Item>
           </div>

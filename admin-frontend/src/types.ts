@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'ADMIN_LEVEL_2' | 'ACCOUNTANT' | 'STAFF'
+export type UserRole = string
 
 export interface AppMenuItem {
   key: string
@@ -30,6 +30,7 @@ export interface UserListItem {
   diaChi?: string | null
   email?: string | null
   role: UserRole
+  roleLabel?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -48,4 +49,6 @@ export interface UserListResponse {
 export interface RoleOption {
   code: UserRole
   label: string
+  moTa?: string | null
+  isActive?: boolean
 }

@@ -153,7 +153,11 @@ function App() {
 
           {!rolesLoading && activeMenuKey === 'users' ? <UsersPage roles={roles} /> : null}
           {!rolesLoading && activeMenuKey === 'roles' ? (
-            <RolesPage roles={roles} loading={rolesLoading} />
+            <RolesPage
+              roles={roles}
+              loading={rolesLoading}
+              onRolesChanged={loadRolesAndPermissions}
+            />
           ) : null}
           {!rolesLoading && activeMenuKey === 'user-permissions' ? (
             <Alert

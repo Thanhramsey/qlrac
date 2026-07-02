@@ -32,7 +32,7 @@ export class AuthService {
         id: user.id,
         taiKhoan: user.taiKhoan,
         hoVaTen: user.hoVaTen,
-        role: user.role,
+        role: user.roleCode,
       },
       menus: [
         {

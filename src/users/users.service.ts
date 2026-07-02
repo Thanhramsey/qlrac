@@ -24,27 +24,13 @@ export class UsersService {
         skip,
         take: normalizedLimit,
         orderBy: { id: 'desc' },
-        select: {
-          id: true,
-          taiKhoan: true,
-          hoVaTen: true,
-          ngaySinh: true,
-          gioiTinh: true,
-          soDienThoai: true,
-          soGiayTo: true,
-          diaChi: true,
-          email: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select: this.userSelect,
       }),
       this.prisma.user.count(),
     ]);
 
     return {
-      data,
+      data: data.map((item) => this.toUserResponse(item)),
       pagination: {
         page: normalizedPage,
         limit: normalizedLimit,
@@ -57,36 +43,24 @@ export class UsersService {
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        taiKhoan: true,
-        hoVaTen: true,
-        ngaySinh: true,
-        gioiTinh: true,
-        soDienThoai: true,
-        soGiayTo: true,
-        diaChi: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: this.userSelect,
     });
 
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    return user;
+    return this.toUserResponse(user);
   }
 
   async create(createUserDto: CreateUserDto) {
     this.validateRequiredFields(createUserDto);
+    const roleCode = createUserDto.role?.trim() || 'STAFF';
+    await this.ensureRoleExists(roleCode);
 
     const matKhauHash = await hash(createUserDto.matKhau, 10);
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         taiKhoan: createUserDto.taiKhoan.trim(),
         matKhauHash,
@@ -99,34 +73,27 @@ export class UsersService {
         soGiayTo: createUserDto.soGiayTo.trim(),
         diaChi: createUserDto.diaChi?.trim(),
         email: createUserDto.email?.trim(),
-        role: createUserDto.role ?? 'STAFF',
+        roleCode,
       },
-      select: {
-        id: true,
-        taiKhoan: true,
-        hoVaTen: true,
-        ngaySinh: true,
-        gioiTinh: true,
-        soDienThoai: true,
-        soGiayTo: true,
-        diaChi: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: this.userSelect,
     });
+
+    return this.toUserResponse(user);
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     await this.findOne(id);
 
+    const roleCode = updateUserDto.role?.trim();
+    if (roleCode) {
+      await this.ensureRoleExists(roleCode);
+    }
+
     const matKhauHash = updateUserDto.matKhau
       ? await hash(updateUserDto.matKhau, 10)
       : undefined;
 
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id },
       data: {
         taiKhoan: updateUserDto.taiKhoan?.trim(),
@@ -140,25 +107,13 @@ export class UsersService {
         soGiayTo: updateUserDto.soGiayTo?.trim(),
         diaChi: updateUserDto.diaChi?.trim(),
         email: updateUserDto.email?.trim(),
-        role: updateUserDto.role,
+        roleCode,
         isActive: updateUserDto.isActive,
       },
-      select: {
-        id: true,
-        taiKhoan: true,
-        hoVaTen: true,
-        ngaySinh: true,
-        gioiTinh: true,
-        soDienThoai: true,
-        soGiayTo: true,
-        diaChi: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: this.userSelect,
     });
+
+    return this.toUserResponse(user);
   }
 
   async remove(id: number) {
@@ -186,6 +141,69 @@ export class UsersService {
 
     if (!data.soGiayTo?.trim()) {
       throw new BadRequestException('Trường số giấy tờ là bắt buộc');
+    }
+  }
+
+  private readonly userSelect = {
+    id: true,
+    taiKhoan: true,
+    hoVaTen: true,
+    ngaySinh: true,
+    gioiTinh: true,
+    soDienThoai: true,
+    soGiayTo: true,
+    diaChi: true,
+    email: true,
+    roleCode: true,
+    role: {
+      select: {
+        code: true,
+        label: true,
+      },
+    },
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+  };
+
+  private toUserResponse(user: {
+    id: number;
+    taiKhoan: string;
+    hoVaTen: string;
+    ngaySinh: Date | null;
+    gioiTinh: string | null;
+    soDienThoai: string;
+    soGiayTo: string;
+    diaChi: string | null;
+    email: string | null;
+    roleCode: string;
+    role: { code: string; label: string } | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: user.id,
+      taiKhoan: user.taiKhoan,
+      hoVaTen: user.hoVaTen,
+      ngaySinh: user.ngaySinh,
+      gioiTinh: user.gioiTinh,
+      soDienThoai: user.soDienThoai,
+      soGiayTo: user.soGiayTo,
+      diaChi: user.diaChi,
+      email: user.email,
+      role: user.roleCode,
+      roleLabel: user.role?.label ?? user.roleCode,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  private async ensureRoleExists(roleCode: string) {
+    const role = await this.prisma.role.findUnique({ where: { code: roleCode } });
+    if (!role) {
+      throw new BadRequestException('Quyền không tồn tại');
     }
   }
 }

@@ -27,15 +27,6 @@ enum InvoicePaymentStatus {
   @@map("invoice_payment_status")
 }
 
-enum UserRole {
-  ADMIN
-  ADMIN_LEVEL_2
-  ACCOUNTANT
-  STAFF
-
-  @@map("user_role")
-}
-
 model Household {
   id           Int          @id @default(autoincrement()) @map("id")
   maHoDan      String       @unique @map("ma_ho_dan")
@@ -105,6 +96,19 @@ model Invoice {
   @@map("invoices")
 }
 
+model Role {
+  code      String   @id @map("code")
+  label     String   @map("label")
+  moTa      String?  @map("mo_ta")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
 model User {
   id          Int       @id @default(autoincrement()) @map("id")
   taiKhoan    String    @unique @map("tai_khoan")
@@ -116,12 +120,14 @@ model User {
   soGiayTo    String    @unique @map("so_giay_to")
   diaChi      String?   @map("dia_chi")
   email       String?   @map("email")
-  role        UserRole  @default(STAFF) @map("role")
+  roleCode    String    @default("STAFF") @map("role_code")
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  role Role @relation(fields: [roleCode], references: [code])
+
   @@index([soDienThoai])
-  @@index([role])
+  @@index([roleCode])
   @@map("users")
 }

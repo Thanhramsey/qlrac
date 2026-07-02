@@ -8,6 +8,6 @@ export class UpdateUserDto {
   soGiayTo?: string;
   diaChi?: string;
   email?: string;
-  role?: 'ADMIN' | 'ADMIN_LEVEL_2' | 'ACCOUNTANT' | 'STAFF';
+  role?: string;
   isActive?: boolean;
 }

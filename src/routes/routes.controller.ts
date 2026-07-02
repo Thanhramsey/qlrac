@@ -8,12 +8,18 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { RoutesService } from './routes.service';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 
 @Controller('routes')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'ADMIN_LEVEL_2', 'STAFF')
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 

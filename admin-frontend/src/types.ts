@@ -15,6 +15,10 @@ export interface LoginUser {
 
 export interface LoginResponse {
   message: string
+  accessToken: string
+  refreshToken: string
+  tokenType: 'Bearer'
+  expiresIn: string
   user: LoginUser
   menus: AppMenuItem[]
 }

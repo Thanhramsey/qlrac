@@ -8,12 +8,18 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 
 @Controller('collections')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'ADMIN_LEVEL_2', 'STAFF')
 export class CollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 

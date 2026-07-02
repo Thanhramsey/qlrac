@@ -11,7 +11,14 @@ import {
 } from 'antd'
 import { TeamOutlined, UserSwitchOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
-import { apiClient } from './api/axios.instance'
+import {
+  apiClient,
+  authTokenStorage,
+  clearStoredTokens,
+  refreshTokenStorage,
+  setTokenRefreshedHandler,
+  setUnauthorizedHandler,
+} from './api/axios.instance'
 import { LoginPage } from './features/login-page'
 import { RolesPage } from './features/roles-page'
 import { UsersPage } from './features/users-page'
@@ -19,6 +26,43 @@ import type { LoginResponse, RoleOption } from './types'
 import './App.css'
 
 const { Header, Content, Sider } = Layout
+const AUTH_SESSION_KEY = 'auth_session'
+
+function updateStoredAccessToken(accessToken: string) {
+  const rawSession = localStorage.getItem(AUTH_SESSION_KEY)
+  if (!rawSession) {
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(rawSession) as LoginResponse
+    const nextSession: LoginResponse = { ...parsed, accessToken }
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession))
+  } catch {
+    localStorage.removeItem(AUTH_SESSION_KEY)
+  }
+}
+
+function updateStoredRefreshToken(refreshToken: string) {
+  const rawSession = localStorage.getItem(AUTH_SESSION_KEY)
+  if (!rawSession) {
+    return
+  }
+
+  try {
+    const parsed = JSON.parse(rawSession) as LoginResponse
+    const nextSession: LoginResponse = { ...parsed, refreshToken }
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(nextSession))
+  } catch {
+    localStorage.removeItem(AUTH_SESSION_KEY)
+  }
+}
+
+function clearAuthState(setSession: (session: LoginResponse | null) => void) {
+  clearStoredTokens()
+  localStorage.removeItem(AUTH_SESSION_KEY)
+  setSession(null)
+}
 
 function App() {
   const [session, setSession] = useState<LoginResponse | null>(null)
@@ -29,6 +73,54 @@ function App() {
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [rolesLoading, setRolesLoading] = useState(false)
   const [permissionsMessage, setPermissionsMessage] = useState('')
+
+  useEffect(() => {
+    const rawSession = localStorage.getItem(AUTH_SESSION_KEY)
+    if (!rawSession) {
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(rawSession) as LoginResponse
+      if (parsed?.accessToken && parsed?.refreshToken && parsed?.user && parsed?.menus) {
+        authTokenStorage.set(parsed.accessToken)
+        refreshTokenStorage.set(parsed.refreshToken)
+        setSession(parsed)
+      }
+    } catch {
+      localStorage.removeItem(AUTH_SESSION_KEY)
+      clearStoredTokens()
+    }
+  }, [])
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearAuthState(setSession)
+      setRoles([])
+      setActiveMenuKey('users')
+      message.warning('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
+    })
+
+    return () => setUnauthorizedHandler(null)
+  }, [])
+
+  useEffect(() => {
+    setTokenRefreshedHandler(({ accessToken, refreshToken }) => {
+      updateStoredAccessToken(accessToken)
+      updateStoredRefreshToken(refreshToken)
+      setSession((current) =>
+        current
+          ? {
+              ...current,
+              accessToken,
+              refreshToken,
+            }
+          : current,
+      )
+    })
+
+    return () => setTokenRefreshedHandler(null)
+  }, [])
 
   const parentMenus = useMemo(
     () =>
@@ -77,6 +169,9 @@ function App() {
     try {
       const response = await apiClient.post<LoginResponse>('/auth/login', values)
       setSession(response.data)
+      authTokenStorage.set(response.data.accessToken)
+      refreshTokenStorage.set(response.data.refreshToken)
+      localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(response.data))
       setActiveMenuKey('users')
       message.success('Đăng nhập thành công')
     } catch (error) {
@@ -130,7 +225,7 @@ function App() {
                   key: 'logout',
                   label: 'Đăng xuất',
                   onClick: () => {
-                    setSession(null)
+                    clearAuthState(setSession)
                     setRoles([])
                     setActiveMenuKey('users')
                   },

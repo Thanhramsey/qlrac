@@ -113,6 +113,7 @@ model User {
   id          Int       @id @default(autoincrement()) @map("id")
   taiKhoan    String    @unique @map("tai_khoan")
   matKhauHash String    @map("mat_khau_hash")
+  refreshTokenHash String? @map("refresh_token_hash")
   hoVaTen     String    @map("ho_va_ten")
   ngaySinh    DateTime? @map("ngay_sinh")
   gioiTinh    String?   @map("gioi_tinh")

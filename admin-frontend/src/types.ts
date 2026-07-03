@@ -10,6 +10,7 @@ export interface LoginUser {
   id: number
   taiKhoan: string
   hoVaTen: string
+  avatarUrl?: string | null
   role: UserRole
 }
 
@@ -27,6 +28,7 @@ export interface UserListItem {
   id: number
   taiKhoan: string
   hoVaTen: string
+  avatarUrl?: string | null
   ngaySinh?: string | null
   gioiTinh?: string | null
   soDienThoai: string

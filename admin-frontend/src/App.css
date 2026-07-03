@@ -55,20 +55,36 @@
   padding-inline: 24px;
 }
 
-.logout-button {
-  min-height: 42px;
-  min-width: 130px;
-  padding-inline: 18px !important;
-  border-radius: 12px !important;
-  font-weight: 600;
-  background: linear-gradient(120deg, #145267, #227694) !important;
-  border-color: #1f6279 !important;
+.header-user-greeting {
+  max-width: 56%;
 }
 
-.logout-button:hover,
-.logout-button:focus {
-  background: linear-gradient(120deg, #11495c, #1d6782) !important;
-  border-color: #1b596f !important;
+.user-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.user-dropdown-trigger:hover {
+  background: rgba(31, 77, 97, 0.08);
+}
+
+.user-dropdown-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.profile-modal-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
 .app-content {
@@ -288,10 +304,17 @@
     padding-inline: 12px;
   }
 
-  .logout-button {
-    min-width: 118px;
-    min-height: 40px;
-    padding-inline: 14px !important;
+  .header-user-greeting {
+    display: none !important;
+  }
+
+  .user-dropdown-trigger {
+    min-width: auto;
+    padding: 4px 8px;
+  }
+
+  .user-dropdown-meta {
+    display: none;
   }
 
   .form-grid {

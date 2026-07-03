@@ -258,6 +258,7 @@ model User {
   matKhauHash String    @map("mat_khau_hash")
   refreshTokenHash String? @map("refresh_token_hash")
   hoVaTen     String    @map("ho_va_ten")
+  avatarUrl   String?   @map("avatar_url")
   ngaySinh    DateTime? @map("ngay_sinh")
   gioiTinh    String?   @map("gioi_tinh")
   soDienThoai String    @map("so_dien_thoai")

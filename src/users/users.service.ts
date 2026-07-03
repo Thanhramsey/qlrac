@@ -3,15 +3,105 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { hash } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findMe(userId: number) {
+    return this.findOne(userId);
+  }
+
+  async updateMe(userId: number, updateMyProfileDto: UpdateMyProfileDto) {
+    await this.findOne(userId);
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        hoVaTen: updateMyProfileDto.hoVaTen?.trim(),
+        ngaySinh: updateMyProfileDto.ngaySinh
+          ? new Date(updateMyProfileDto.ngaySinh)
+          : undefined,
+        gioiTinh: updateMyProfileDto.gioiTinh?.trim(),
+        soDienThoai: updateMyProfileDto.soDienThoai?.trim(),
+        diaChi: updateMyProfileDto.diaChi?.trim(),
+        email: updateMyProfileDto.email?.trim(),
+      },
+      select: this.userSelect,
+    });
+
+    return this.toUserResponse(user);
+  }
+
+  async updateMyPassword(userId: number, changeMyPasswordDto: ChangeMyPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        matKhauHash: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    if (!changeMyPasswordDto.currentPassword?.trim()) {
+      throw new BadRequestException('Mật khẩu hiện tại là bắt buộc');
+    }
+
+    if (!changeMyPasswordDto.newPassword?.trim()) {
+      throw new BadRequestException('Mật khẩu mới là bắt buộc');
+    }
+
+    const isCurrentPasswordValid = await compare(
+      changeMyPasswordDto.currentPassword,
+      user.matKhauHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    const isSamePassword = await compare(
+      changeMyPasswordDto.newPassword,
+      user.matKhauHash,
+    );
+    if (isSamePassword) {
+      throw new BadRequestException('Mật khẩu mới không được trùng mật khẩu hiện tại');
+    }
+
+    const matKhauHash = await hash(changeMyPasswordDto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        matKhauHash,
+        refreshTokenHash: null,
+      },
+    });
+
+    return { message: 'Cập nhật mật khẩu thành công, vui lòng đăng nhập lại' };
+  }
+
+  async updateMyAvatar(userId: number, avatarUrl: string | null) {
+    await this.findOne(userId);
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      select: this.userSelect,
+    });
+
+    return this.toUserResponse(user);
+  }
 
   async findAll(page = 1, limit = 20) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
@@ -287,6 +377,7 @@ export class UsersService {
     id: true,
     taiKhoan: true,
     hoVaTen: true,
+    avatarUrl: true,
     ngaySinh: true,
     gioiTinh: true,
     soDienThoai: true,
@@ -316,6 +407,7 @@ export class UsersService {
     id: number;
     taiKhoan: string;
     hoVaTen: string;
+    avatarUrl: string | null;
     ngaySinh: Date | null;
     gioiTinh: string | null;
     soDienThoai: string;
@@ -333,6 +425,7 @@ export class UsersService {
       id: user.id,
       taiKhoan: user.taiKhoan,
       hoVaTen: user.hoVaTen,
+      avatarUrl: user.avatarUrl,
       ngaySinh: user.ngaySinh,
       gioiTinh: user.gioiTinh,
       soDienThoai: user.soDienThoai,

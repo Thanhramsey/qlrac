@@ -72,6 +72,7 @@ export class AuthService {
         id: user.id,
         taiKhoan: user.taiKhoan,
         hoVaTen: user.hoVaTen,
+        avatarUrl: user.avatarUrl,
         role: user.roleCode,
       },
       menus,

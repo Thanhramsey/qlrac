@@ -55,6 +55,38 @@
   padding-inline: 24px;
 }
 
+.header-user-greeting {
+  max-width: 56%;
+}
+
+.user-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.user-dropdown-trigger:hover {
+  background: rgba(31, 77, 97, 0.08);
+}
+
+.user-dropdown-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.profile-modal-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
 .app-content {
   padding: 24px;
 }
@@ -69,6 +101,41 @@
   border-radius: 18px !important;
   box-shadow: 0 12px 30px rgba(25, 57, 70, 0.12);
   overflow: hidden;
+}
+
+.app-content .ant-table-wrapper {
+  border-radius: 14px;
+}
+
+.app-content .ant-table-wrapper .ant-table {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.app-content .ant-table-wrapper .ant-table-container {
+  border-radius: 14px;
+}
+
+.app-content .ant-table-wrapper .ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #f7fbff 0%, #eef6ff 100%) !important;
+  color: #174a7e !important;
+  font-weight: 700;
+}
+
+.app-content .ant-table-wrapper .ant-table-tbody > tr:nth-child(odd) > td {
+  background: #ffffff;
+}
+
+.app-content .ant-table-wrapper .ant-table-tbody > tr:nth-child(even) > td {
+  background: #fcfeff;
+}
+
+.app-content .ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #f2f8ff !important;
+}
+
+.app-content .ant-table-wrapper .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #e6f2ff !important;
 }
 
 .role-card {
@@ -130,6 +197,19 @@
   color: #ffffff !important;
 }
 
+.report-pdf-btn {
+  background: #d32f2f !important;
+  border-color: #b71c1c !important;
+  color: #ffffff !important;
+}
+
+.report-pdf-btn:hover,
+.report-pdf-btn:focus {
+  background: #b71c1c !important;
+  border-color: #8e1515 !important;
+  color: #ffffff !important;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -173,6 +253,48 @@
   background: rgba(33, 109, 132, 0.08) !important;
 }
 
+.receipt-action-btn {
+  border-radius: 10px !important;
+  font-weight: 700;
+}
+
+.receipt-gen-btn {
+  background: linear-gradient(120deg, #0f7c57, #0b6a6c) !important;
+  border-color: #0d6f60 !important;
+}
+
+.receipt-gen-btn:hover,
+.receipt-gen-btn:focus {
+  background: linear-gradient(120deg, #0d6f4e, #0a5d5f) !important;
+  border-color: #0a5f55 !important;
+}
+
+.receipt-pdf-btn {
+  background: linear-gradient(120deg, #d64545, #b4202f) !important;
+  border-color: #ad2432 !important;
+  color: #ffffff !important;
+}
+
+.receipt-pdf-btn:hover,
+.receipt-pdf-btn:focus {
+  background: linear-gradient(120deg, #bc3333, #951826) !important;
+  border-color: #911421 !important;
+  color: #ffffff !important;
+}
+
+.receipt-image-btn {
+  background: linear-gradient(120deg, #1f6dbe, #244da6) !important;
+  border-color: #25529d !important;
+  color: #ffffff !important;
+}
+
+.receipt-image-btn:hover,
+.receipt-image-btn:focus {
+  background: linear-gradient(120deg, #1a5ea6, #203f89) !important;
+  border-color: #1f3d80 !important;
+  color: #ffffff !important;
+}
+
 @media (max-width: 768px) {
   .app-content {
     padding: 12px;
@@ -180,6 +302,19 @@
 
   .app-header {
     padding-inline: 12px;
+  }
+
+  .header-user-greeting {
+    display: none !important;
+  }
+
+  .user-dropdown-trigger {
+    min-width: auto;
+    padding: 4px 8px;
+  }
+
+  .user-dropdown-meta {
+    display: none;
   }
 
   .form-grid {

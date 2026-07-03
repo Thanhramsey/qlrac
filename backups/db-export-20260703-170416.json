@@ -1,0 +1,1124 @@
+{
+  "exportedAt": "2026-07-03T10:04:16.385Z",
+  "schema": "quanlythurac",
+  "tables": {
+    "role": [
+      {
+        "code": "ACCOUNTANT",
+        "label": "Kế toán",
+        "moTa": "1",
+        "isActive": true,
+        "createdAt": "2026-07-02T13:08:59.191Z",
+        "updatedAt": "2026-07-03T09:45:32.111Z"
+      },
+      {
+        "code": "ADMIN",
+        "label": "Quản trị hệ thống",
+        "moTa": null,
+        "isActive": true,
+        "createdAt": "2026-07-02T13:08:59.191Z",
+        "updatedAt": "2026-07-03T09:45:32.053Z"
+      },
+      {
+        "code": "ADMIN_LEVEL_2",
+        "label": "Admin mức 2",
+        "moTa": null,
+        "isActive": true,
+        "createdAt": "2026-07-02T13:08:59.191Z",
+        "updatedAt": "2026-07-03T09:45:32.110Z"
+      },
+      {
+        "code": "STAFF",
+        "label": "Nhân viên",
+        "moTa": null,
+        "isActive": true,
+        "createdAt": "2026-07-02T13:08:59.191Z",
+        "updatedAt": "2026-07-03T09:45:32.113Z"
+      }
+    ],
+    "province": [
+      {
+        "id": 1,
+        "maTinh": "TINH-1782975304",
+        "tenTinh": "Gia Lai",
+        "createdAt": "2026-07-02T06:55:04.777Z",
+        "updatedAt": "2026-07-02T07:03:58.684Z"
+      },
+      {
+        "id": 2,
+        "maTinh": "DN",
+        "tenTinh": "Đà Nẵng",
+        "createdAt": "2026-07-02T09:03:48.323Z",
+        "updatedAt": "2026-07-03T09:45:32.180Z"
+      }
+    ],
+    "ward": [
+      {
+        "id": 1,
+        "provinceId": 1,
+        "maPhuongXa": "PX-1782975304",
+        "tenPhuongXa": "Phường An Khê",
+        "createdAt": "2026-07-02T06:55:04.803Z",
+        "updatedAt": "2026-07-02T07:04:12.842Z"
+      },
+      {
+        "id": 2,
+        "provinceId": 2,
+        "maPhuongXa": "ANKHE",
+        "tenPhuongXa": "An Khê",
+        "createdAt": "2026-07-02T09:03:48.327Z",
+        "updatedAt": "2026-07-03T09:45:32.183Z"
+      },
+      {
+        "id": 3,
+        "provinceId": 2,
+        "maPhuongXa": "HOAKHE",
+        "tenPhuongXa": "Hòa Khê",
+        "createdAt": "2026-07-02T09:03:48.331Z",
+        "updatedAt": "2026-07-03T09:45:32.185Z"
+      }
+    ],
+    "locality": [
+      {
+        "id": 1,
+        "wardId": 1,
+        "maThonXomTo": "TO1",
+        "tenThonXomTo": "Tổ dân phố 1",
+        "createdAt": "2026-07-02T06:55:04.815Z",
+        "updatedAt": "2026-07-02T07:04:37.871Z"
+      },
+      {
+        "id": 2,
+        "wardId": 1,
+        "maThonXomTo": "TO2",
+        "tenThonXomTo": "Tổ dân phố 2",
+        "createdAt": "2026-07-02T07:36:15.607Z",
+        "updatedAt": "2026-07-02T07:36:15.607Z"
+      },
+      {
+        "id": 3,
+        "wardId": 2,
+        "maThonXomTo": "TO-01",
+        "tenThonXomTo": "Tổ dân phố 01",
+        "createdAt": "2026-07-02T09:03:48.334Z",
+        "updatedAt": "2026-07-03T09:45:32.188Z"
+      },
+      {
+        "id": 4,
+        "wardId": 3,
+        "maThonXomTo": "TO-05",
+        "tenThonXomTo": "Tổ dân phố 05",
+        "createdAt": "2026-07-02T09:03:48.336Z",
+        "updatedAt": "2026-07-03T09:45:32.190Z"
+      }
+    ],
+    "serviceCatalog": [
+      {
+        "id": 1,
+        "maDichVu": "SH",
+        "tenDichVu": "Phí rác sinh hoạt",
+        "giaDichVu": "150000",
+        "thuePhanTram": "0",
+        "isActive": true,
+        "ghiChu": "Cho đối tượng sinh hoạt",
+        "createdAt": "2026-07-02T08:08:59.822Z",
+        "updatedAt": "2026-07-02T08:08:59.822Z"
+      },
+      {
+        "id": 2,
+        "maDichVu": "TC",
+        "tenDichVu": "Phí rác cho cơ quan tổ chức",
+        "giaDichVu": "150000",
+        "thuePhanTram": "5",
+        "isActive": true,
+        "ghiChu": "Phí rác cho cơ quan tổ chức",
+        "createdAt": "2026-07-02T08:09:22.325Z",
+        "updatedAt": "2026-07-02T08:09:22.325Z"
+      },
+      {
+        "id": 3,
+        "maDichVu": "DV-SH",
+        "tenDichVu": "Thu gom rác sinh hoạt",
+        "giaDichVu": "120000",
+        "thuePhanTram": "0",
+        "isActive": true,
+        "ghiChu": "Áp dụng hộ dân thông thường",
+        "createdAt": "2026-07-02T09:03:48.347Z",
+        "updatedAt": "2026-07-03T09:45:32.201Z"
+      },
+      {
+        "id": 4,
+        "maDichVu": "DV-TC",
+        "tenDichVu": "Thu gom rác tổ chức",
+        "giaDichVu": "150000",
+        "thuePhanTram": "10",
+        "isActive": true,
+        "ghiChu": "Áp dụng cơ sở kinh doanh/tổ chức",
+        "createdAt": "2026-07-02T09:03:48.350Z",
+        "updatedAt": "2026-07-03T09:45:32.204Z"
+      }
+    ],
+    "user": [
+      {
+        "id": 1,
+        "taiKhoan": "admin01",
+        "matKhauHash": "$2b$10$PpifboDFdmvR9b3b8po9Ee3qVO.kZZevGnc4toBwng575I9eHLu/u",
+        "refreshTokenHash": "$2b$10$ZlYIFdvHun0hqDBl7Wk.8OCQZ9NA8l.Tg1VMfO.ucVitTxq.bhNIK",
+        "hoVaTen": "Quản trị hệ thống",
+        "ngaySinh": "1992-07-02T00:00:00.000Z",
+        "gioiTinh": null,
+        "soDienThoai": "0900000001",
+        "soGiayTo": "079200000001",
+        "diaChi": "An Khe",
+        "email": "admin01@example.com",
+        "roleCode": "ADMIN",
+        "isActive": true,
+        "createdAt": "2026-07-02T06:14:18.578Z",
+        "updatedAt": "2026-07-03T09:48:16.200Z"
+      },
+      {
+        "id": 2,
+        "taiKhoan": "nhanvien2",
+        "matKhauHash": "$2b$10$g/7/CvAtz5SY6qjX/vcdHOnSsCETJ/LMQba32Fo7PdEEteh.VXzKy",
+        "refreshTokenHash": "$2b$10$/rbug.17IB30nrtB5aWcr.Ul2U3dxng8KyiyjCHvjgDE.4.BU9q4.",
+        "hoVaTen": "Nhân viên 2",
+        "ngaySinh": null,
+        "gioiTinh": null,
+        "soDienThoai": "0911000111",
+        "soGiayTo": "07929991782976265",
+        "diaChi": null,
+        "email": null,
+        "roleCode": "STAFF",
+        "isActive": true,
+        "createdAt": "2026-07-02T07:11:05.928Z",
+        "updatedAt": "2026-07-02T08:38:38.283Z"
+      },
+      {
+        "id": 4,
+        "taiKhoan": "imp_user_02",
+        "matKhauHash": "$2b$10$b3zmz73XwGiuQSWiijembehLaYsHz24lbKpygrZwzXSQ7II5UGa0O",
+        "refreshTokenHash": null,
+        "hoVaTen": "User Import 02",
+        "ngaySinh": null,
+        "gioiTinh": null,
+        "soDienThoai": "0911222444",
+        "soGiayTo": "079200022222",
+        "diaChi": null,
+        "email": null,
+        "roleCode": "STAFF",
+        "isActive": true,
+        "createdAt": "2026-07-02T07:25:58.910Z",
+        "updatedAt": "2026-07-02T07:37:47.092Z"
+      },
+      {
+        "id": 6,
+        "taiKhoan": "adminlv2",
+        "matKhauHash": "$2b$10$PpifboDFdmvR9b3b8po9Ee3qVO.kZZevGnc4toBwng575I9eHLu/u",
+        "refreshTokenHash": null,
+        "hoVaTen": "Admin mức 2",
+        "ngaySinh": null,
+        "gioiTinh": null,
+        "soDienThoai": "0900000002",
+        "soGiayTo": "079200000002",
+        "diaChi": null,
+        "email": "adminlv2@example.com",
+        "roleCode": "ADMIN_LEVEL_2",
+        "isActive": true,
+        "createdAt": "2026-07-02T09:03:48.437Z",
+        "updatedAt": "2026-07-03T09:45:32.286Z"
+      },
+      {
+        "id": 7,
+        "taiKhoan": "staff01",
+        "matKhauHash": "$2b$10$PpifboDFdmvR9b3b8po9Ee3qVO.kZZevGnc4toBwng575I9eHLu/u",
+        "refreshTokenHash": null,
+        "hoVaTen": "Nhân viên tuyến 01",
+        "ngaySinh": null,
+        "gioiTinh": null,
+        "soDienThoai": "0900000003",
+        "soGiayTo": "079200000003",
+        "diaChi": null,
+        "email": "staff01@example.com",
+        "roleCode": "STAFF",
+        "isActive": true,
+        "createdAt": "2026-07-02T09:03:48.439Z",
+        "updatedAt": "2026-07-03T09:45:32.287Z"
+      },
+      {
+        "id": 8,
+        "taiKhoan": "account01",
+        "matKhauHash": "$2b$10$PpifboDFdmvR9b3b8po9Ee3qVO.kZZevGnc4toBwng575I9eHLu/u",
+        "refreshTokenHash": null,
+        "hoVaTen": "Kế toán 01",
+        "ngaySinh": null,
+        "gioiTinh": null,
+        "soDienThoai": "0900000004",
+        "soGiayTo": "079200000004",
+        "diaChi": null,
+        "email": "account01@example.com",
+        "roleCode": "ACCOUNTANT",
+        "isActive": true,
+        "createdAt": "2026-07-02T09:03:48.441Z",
+        "updatedAt": "2026-07-03T09:45:32.288Z"
+      }
+    ],
+    "route": [
+      {
+        "id": 1,
+        "maTuyen": "TUYEN-1782975304",
+        "tenTuyen": "Hai Bà Trưng",
+        "khuVuc": "Khu đầu",
+        "localityId": 1,
+        "staffId": null,
+        "createdAt": "2026-07-02T06:55:04.836Z",
+        "updatedAt": "2026-07-02T07:25:58.823Z"
+      },
+      {
+        "id": 2,
+        "maTuyen": "TUYEN2",
+        "tenTuyen": "Hai Bà Trừng",
+        "khuVuc": "Khúc giữa",
+        "localityId": 1,
+        "staffId": null,
+        "createdAt": "2026-07-02T07:10:32.182Z",
+        "updatedAt": "2026-07-03T07:35:03.058Z"
+      },
+      {
+        "id": 5,
+        "maTuyen": "THD01",
+        "tenTuyen": "Trần Hưng Đạo",
+        "khuVuc": "Khu vực A",
+        "localityId": 2,
+        "staffId": null,
+        "createdAt": "2026-07-02T07:37:18.988Z",
+        "updatedAt": "2026-07-03T07:35:03.058Z"
+      },
+      {
+        "id": 6,
+        "maTuyen": "THD02",
+        "tenTuyen": "Trần Hưng Đạo",
+        "khuVuc": "Khu vực B",
+        "localityId": 2,
+        "staffId": null,
+        "createdAt": "2026-07-02T07:37:18.989Z",
+        "updatedAt": "2026-07-03T07:35:03.058Z"
+      },
+      {
+        "id": 7,
+        "maTuyen": "RT-001",
+        "tenTuyen": "Tuyến An Khê 1",
+        "khuVuc": "Khu vực An Khê",
+        "localityId": 3,
+        "staffId": 7,
+        "createdAt": "2026-07-02T09:03:48.339Z",
+        "updatedAt": "2026-07-03T09:45:32.295Z"
+      },
+      {
+        "id": 8,
+        "maTuyen": "RT-002",
+        "tenTuyen": "Tuyến Hòa Khê 1",
+        "khuVuc": "Khu vực Hòa Khê",
+        "localityId": 4,
+        "staffId": 7,
+        "createdAt": "2026-07-02T09:03:48.342Z",
+        "updatedAt": "2026-07-03T09:45:32.196Z"
+      }
+    ],
+    "household": [
+      {
+        "id": 1,
+        "maHoDan": "HD-0001",
+        "tenChuHo": "Nguyễn Văn An",
+        "diaChi": "Tổ dân phố 01, An Khê, Đà Nẵng",
+        "soDienThoai": "0911000001",
+        "soGiayTo": "201000000001",
+        "ngayCapGiayTo": "2020-05-10T00:00:00.000Z",
+        "maSoThue": "0401999001",
+        "serviceCatalogId": 3,
+        "tuyenThuRacId": 7,
+        "isActive": true,
+        "createdAt": "2026-07-02T09:18:53.195Z",
+        "updatedAt": "2026-07-03T09:45:32.319Z"
+      },
+      {
+        "id": 2,
+        "maHoDan": "HD-0002",
+        "tenChuHo": "Công ty Môi Trường Xanh",
+        "diaChi": "Tổ dân phố 05, Hòa Khê, Đà Nẵng",
+        "soDienThoai": "0911000002",
+        "soGiayTo": "031000000002",
+        "ngayCapGiayTo": "2021-03-12T00:00:00.000Z",
+        "maSoThue": "0402999002",
+        "serviceCatalogId": 4,
+        "tuyenThuRacId": 8,
+        "isActive": true,
+        "createdAt": "2026-07-02T09:18:53.205Z",
+        "updatedAt": "2026-07-03T09:45:32.321Z"
+      },
+      {
+        "id": 3,
+        "maHoDan": "HD-0100",
+        "tenChuHo": "Nguyen Van B",
+        "diaChi": "To 1, An Khe,",
+        "soDienThoai": "0911222333",
+        "soGiayTo": "201000000100",
+        "ngayCapGiayTo": "2024-01-15T00:00:00.000Z",
+        "maSoThue": "0403000100",
+        "serviceCatalogId": 4,
+        "tuyenThuRacId": 5,
+        "isActive": true,
+        "createdAt": "2026-07-02T09:27:29.513Z",
+        "updatedAt": "2026-07-02T09:27:46.333Z"
+      }
+    ],
+    "billingPeriod": [
+      {
+        "id": 1,
+        "maKy": "2026-07",
+        "tenKy": "Kỳ 07/2026",
+        "ngayBatDau": "2026-06-30T17:00:00.000Z",
+        "ngayKetThuc": "2026-07-31T16:59:59.999Z",
+        "isClosed": false,
+        "isAutoGenerated": true,
+        "createdAt": "2026-07-03T02:19:12.585Z",
+        "updatedAt": "2026-07-03T10:04:01.294Z"
+      },
+      {
+        "id": 13,
+        "maKy": "2026-06",
+        "tenKy": "Kỳ 06-2026",
+        "ngayBatDau": "2026-06-01T00:00:00.000Z",
+        "ngayKetThuc": "2026-06-30T00:00:00.000Z",
+        "isClosed": false,
+        "isAutoGenerated": false,
+        "createdAt": "2026-07-03T03:50:36.684Z",
+        "updatedAt": "2026-07-03T03:50:36.684Z"
+      },
+      {
+        "id": 14,
+        "maKy": "2026-05",
+        "tenKy": "Kỳ 05/2026",
+        "ngayBatDau": "2026-05-01T00:00:00.000Z",
+        "ngayKetThuc": "2026-05-31T00:00:00.000Z",
+        "isClosed": false,
+        "isAutoGenerated": false,
+        "createdAt": "2026-07-03T03:51:08.881Z",
+        "updatedAt": "2026-07-03T03:51:08.881Z"
+      }
+    ],
+    "billingPeriodConfig": [
+      {
+        "id": 1,
+        "autoCreateEnabled": true,
+        "createdAt": "2026-07-03T09:19:12.163Z",
+        "updatedAt": "2026-07-03T09:45:32.323Z"
+      }
+    ],
+    "menu": [
+      {
+        "id": 1,
+        "menuKey": "user-management",
+        "tenMenu": "Quản trị hệ thống",
+        "routePath": null,
+        "parentId": null,
+        "sortOrder": 10,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.311Z",
+        "updatedAt": "2026-07-03T09:45:32.117Z"
+      },
+      {
+        "id": 2,
+        "menuKey": "catalog-management",
+        "tenMenu": "Quản trị danh mục",
+        "routePath": null,
+        "parentId": null,
+        "sortOrder": 20,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.311Z",
+        "updatedAt": "2026-07-03T09:45:32.119Z"
+      },
+      {
+        "id": 3,
+        "menuKey": "users",
+        "tenMenu": "Danh sách người dùng",
+        "routePath": "/users",
+        "parentId": 1,
+        "sortOrder": 10,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.313Z",
+        "updatedAt": "2026-07-03T09:45:32.126Z"
+      },
+      {
+        "id": 4,
+        "menuKey": "roles",
+        "tenMenu": "Quản lý quyền",
+        "routePath": "/roles",
+        "parentId": 1,
+        "sortOrder": 20,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.314Z",
+        "updatedAt": "2026-07-03T09:45:32.129Z"
+      },
+      {
+        "id": 5,
+        "menuKey": "user-permissions",
+        "tenMenu": "Phân quyền người dùng",
+        "routePath": "/user-permissions",
+        "parentId": 1,
+        "sortOrder": 30,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.314Z",
+        "updatedAt": "2026-07-03T09:45:32.130Z"
+      },
+      {
+        "id": 6,
+        "menuKey": "locations",
+        "tenMenu": "Quản lý địa danh",
+        "routePath": "/locations",
+        "parentId": 2,
+        "sortOrder": 10,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.314Z",
+        "updatedAt": "2026-07-03T09:45:32.132Z"
+      },
+      {
+        "id": 7,
+        "menuKey": "service-catalogs",
+        "tenMenu": "Danh mục dịch vụ",
+        "routePath": "/service-catalogs",
+        "parentId": 2,
+        "sortOrder": 20,
+        "isActive": true,
+        "createdAt": "2026-07-02T15:21:32.315Z",
+        "updatedAt": "2026-07-03T09:45:32.134Z"
+      },
+      {
+        "id": 16,
+        "menuKey": "households",
+        "tenMenu": "Quản lý hộ dân",
+        "routePath": "/households",
+        "parentId": 1,
+        "sortOrder": 15,
+        "isActive": true,
+        "createdAt": "2026-07-02T16:18:49.173Z",
+        "updatedAt": "2026-07-03T09:45:32.128Z"
+      },
+      {
+        "id": 25,
+        "menuKey": "billing-periods",
+        "tenMenu": "Quản lý kỳ hóa đơn",
+        "routePath": "/billing-periods",
+        "parentId": 2,
+        "sortOrder": 30,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:19:12.165Z",
+        "updatedAt": "2026-07-03T09:45:32.135Z"
+      },
+      {
+        "id": 35,
+        "menuKey": "invoice-management",
+        "tenMenu": "Quản lý hóa đơn",
+        "routePath": null,
+        "parentId": null,
+        "sortOrder": 30,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:56:01.204Z",
+        "updatedAt": "2026-07-03T09:45:32.120Z"
+      },
+      {
+        "id": 36,
+        "menuKey": "invoice-collections",
+        "tenMenu": "Quản lý thu tiền",
+        "routePath": "/invoice-collections",
+        "parentId": 35,
+        "sortOrder": 10,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:56:01.206Z",
+        "updatedAt": "2026-07-03T09:45:32.136Z"
+      },
+      {
+        "id": 48,
+        "menuKey": "system-parameters",
+        "tenMenu": "Tham số hệ thống",
+        "routePath": "/system-parameters",
+        "parentId": 1,
+        "sortOrder": 40,
+        "isActive": true,
+        "createdAt": "2026-07-03T11:02:20.986Z",
+        "updatedAt": "2026-07-03T09:45:32.124Z"
+      },
+      {
+        "id": 64,
+        "menuKey": "report-management",
+        "tenMenu": "Báo cáo",
+        "routePath": null,
+        "parentId": null,
+        "sortOrder": 40,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:45:32.122Z",
+        "updatedAt": "2026-07-03T09:45:32.122Z"
+      },
+      {
+        "id": 74,
+        "menuKey": "reports-detail-period",
+        "tenMenu": "Báo cáo chi tiết theo kỳ",
+        "routePath": "/reports/detail-by-period",
+        "parentId": 64,
+        "sortOrder": 10,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:45:32.137Z",
+        "updatedAt": "2026-07-03T09:45:32.137Z"
+      },
+      {
+        "id": 75,
+        "menuKey": "reports-detail-date",
+        "tenMenu": "Báo cáo chi tiết theo ngày",
+        "routePath": "/reports/detail-by-date",
+        "parentId": 64,
+        "sortOrder": 20,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:45:32.139Z",
+        "updatedAt": "2026-07-03T09:45:32.139Z"
+      },
+      {
+        "id": 76,
+        "menuKey": "reports-revenue-summary",
+        "tenMenu": "Báo cáo tổng hợp doanh số",
+        "routePath": "/reports/revenue-summary",
+        "parentId": 64,
+        "sortOrder": 30,
+        "isActive": true,
+        "createdAt": "2026-07-03T09:45:32.141Z",
+        "updatedAt": "2026-07-03T09:45:32.141Z"
+      }
+    ],
+    "roleMenuPermission": [
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 2,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 7,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 25,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 35,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 36,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 64,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 74,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 75,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ACCOUNTANT",
+        "menuId": 76,
+        "createdAt": "2026-07-03T09:45:32.177Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 1,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 2,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 3,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 4,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 5,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 6,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 7,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 16,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 25,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 35,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 36,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 48,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 64,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 74,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 75,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN",
+        "menuId": 76,
+        "createdAt": "2026-07-03T09:45:32.160Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 1,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 2,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 3,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 6,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 7,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 16,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 25,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 35,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 36,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 48,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 64,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 74,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 75,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "ADMIN_LEVEL_2",
+        "menuId": 76,
+        "createdAt": "2026-07-03T09:45:32.167Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 1,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 2,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 6,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 16,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 35,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 36,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 64,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 74,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 75,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      },
+      {
+        "roleCode": "STAFF",
+        "menuId": 76,
+        "createdAt": "2026-07-03T09:45:32.171Z"
+      }
+    ],
+    "collection": [],
+    "invoice": [
+      {
+        "id": 1,
+        "householdId": 3,
+        "kyHoaDon": "2026-07",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-07-31T16:59:59.999Z",
+        "paymentDate": "2026-07-03T03:18:54.172Z",
+        "paymentNote": "đã thu",
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000003",
+        "invoiceFkey": "2026-07-1",
+        "invoiceIssuedAt": "2026-07-03T07:37:03.097Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T02:53:51.082Z",
+        "updatedAt": "2026-07-03T08:34:43.864Z"
+      },
+      {
+        "id": 2,
+        "householdId": 1,
+        "kyHoaDon": "2026-07",
+        "tongTien": "120000",
+        "thue": "0",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-07-31T16:59:59.999Z",
+        "paymentDate": "2026-07-03T03:18:54.172Z",
+        "paymentNote": "đã thu",
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000002",
+        "invoiceFkey": "2026-07-2",
+        "invoiceIssuedAt": "2026-07-03T07:31:35.965Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T02:53:51.082Z",
+        "updatedAt": "2026-07-03T08:34:42.395Z"
+      },
+      {
+        "id": 3,
+        "householdId": 2,
+        "kyHoaDon": "2026-07",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-07-31T16:59:59.999Z",
+        "paymentDate": "2026-07-03T03:31:56.415Z",
+        "paymentNote": "đã thu",
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000001",
+        "invoiceFkey": "2026-07-3",
+        "invoiceIssuedAt": "2026-07-03T07:26:33.170Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T02:53:51.082Z",
+        "updatedAt": "2026-07-03T08:47:48.742Z"
+      },
+      {
+        "id": 4,
+        "householdId": 3,
+        "kyHoaDon": "2026-06",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "UNPAID",
+        "hanThanhToan": "2026-06-30T00:00:00.000Z",
+        "paymentDate": null,
+        "paymentNote": null,
+        "receiptImageUrl": null,
+        "invoiceSerial": null,
+        "invoiceFkey": null,
+        "invoiceIssuedAt": null,
+        "invoicePublishStatus": null,
+        "invoicePublishMessage": null,
+        "createdAt": "2026-07-03T03:50:36.718Z",
+        "updatedAt": "2026-07-03T03:50:36.718Z"
+      },
+      {
+        "id": 5,
+        "householdId": 1,
+        "kyHoaDon": "2026-06",
+        "tongTien": "120000",
+        "thue": "0",
+        "trangThaiThanhToan": "UNPAID",
+        "hanThanhToan": "2026-06-30T00:00:00.000Z",
+        "paymentDate": null,
+        "paymentNote": null,
+        "receiptImageUrl": null,
+        "invoiceSerial": null,
+        "invoiceFkey": null,
+        "invoiceIssuedAt": null,
+        "invoicePublishStatus": null,
+        "invoicePublishMessage": null,
+        "createdAt": "2026-07-03T03:50:36.718Z",
+        "updatedAt": "2026-07-03T03:50:36.718Z"
+      },
+      {
+        "id": 6,
+        "householdId": 2,
+        "kyHoaDon": "2026-06",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-06-30T00:00:00.000Z",
+        "paymentDate": "2026-07-03T03:51:41.350Z",
+        "paymentNote": "đã thu tiền",
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000004",
+        "invoiceFkey": "2026-06-6",
+        "invoiceIssuedAt": "2026-07-03T07:46:26.402Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T03:50:36.718Z",
+        "updatedAt": "2026-07-03T08:35:00.245Z"
+      },
+      {
+        "id": 7,
+        "householdId": 3,
+        "kyHoaDon": "2026-05",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "UNPAID",
+        "hanThanhToan": "2026-05-31T00:00:00.000Z",
+        "paymentDate": null,
+        "paymentNote": null,
+        "receiptImageUrl": null,
+        "invoiceSerial": null,
+        "invoiceFkey": null,
+        "invoiceIssuedAt": null,
+        "invoicePublishStatus": null,
+        "invoicePublishMessage": null,
+        "createdAt": "2026-07-03T03:51:08.890Z",
+        "updatedAt": "2026-07-03T03:51:08.890Z"
+      },
+      {
+        "id": 8,
+        "householdId": 1,
+        "kyHoaDon": "2026-05",
+        "tongTien": "120000",
+        "thue": "0",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-05-31T00:00:00.000Z",
+        "paymentDate": "2026-07-03T08:13:01.163Z",
+        "paymentNote": null,
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000005",
+        "invoiceFkey": "2026-05-8",
+        "invoiceIssuedAt": "2026-07-03T08:13:01.163Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T03:51:08.890Z",
+        "updatedAt": "2026-07-03T08:26:39.458Z"
+      },
+      {
+        "id": 9,
+        "householdId": 2,
+        "kyHoaDon": "2026-05",
+        "tongTien": "150000",
+        "thue": "15000",
+        "trangThaiThanhToan": "PAID",
+        "hanThanhToan": "2026-05-31T00:00:00.000Z",
+        "paymentDate": "2026-07-03T03:51:41.350Z",
+        "paymentNote": "đã thu tiền",
+        "receiptImageUrl": null,
+        "invoiceSerial": "0000006",
+        "invoiceFkey": "HDR202605030720261535089",
+        "invoiceIssuedAt": "2026-07-03T08:35:08.751Z",
+        "invoicePublishStatus": "SUCCESS",
+        "invoicePublishMessage": "Đã đồng bộ seri/fkey thành công",
+        "createdAt": "2026-07-03T03:51:08.890Z",
+        "updatedAt": "2026-07-03T08:35:11.657Z"
+      }
+    ],
+    "systemParameter": [
+      {
+        "id": 1,
+        "tenThamSo": "Tên đơn vị",
+        "giaTri": "Ban Quản lý phường An Khê",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:31:01.645Z"
+      },
+      {
+        "id": 2,
+        "tenThamSo": "Mã số thuế",
+        "giaTri": "59001234",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:31:08.980Z"
+      },
+      {
+        "id": 3,
+        "tenThamSo": "Số điện thoại",
+        "giaTri": "0969123334",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:31:16.314Z"
+      },
+      {
+        "id": 4,
+        "tenThamSo": "Địa chỉ",
+        "giaTri": "34 Hoàng Hoa Thám, Phường An Khê, Tỉnh Gia Lai, Việt Nam",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:31:33.127Z"
+      },
+      {
+        "id": 5,
+        "tenThamSo": "Số tài khoản ngân hàng",
+        "giaTri": "031241234124 -BIDV miền tây",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:31:49.524Z"
+      },
+      {
+        "id": 6,
+        "tenThamSo": "Người đại diện",
+        "giaTri": "",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T11:02:20.989Z"
+      },
+      {
+        "id": 7,
+        "tenThamSo": "Mẫu số hóa đơn",
+        "giaTri": "1/001",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:47:17.582Z"
+      },
+      {
+        "id": 8,
+        "tenThamSo": "Ký hiệu hóa đơn",
+        "giaTri": "K26TTT",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:47:26.395Z"
+      },
+      {
+        "id": 9,
+        "tenThamSo": "PUBLISH_SERVICE_ADDRESS_ID",
+        "giaTri": "https://bvdkphutho-tt78admindemo.vnpt-invoice.com.vn/Publishservice.asmx",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:47:45.962Z"
+      },
+      {
+        "id": 10,
+        "tenThamSo": "BUSINESS_SERVICE_ADDRESS_ID",
+        "giaTri": "https://bvdkphutho-tt78admindemo.vnpt-invoice.com.vn/businessService.asmx",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:47:55.598Z"
+      },
+      {
+        "id": 11,
+        "tenThamSo": "PORTAL_SERVICE_ADDRESS_ID",
+        "giaTri": "https://bvdkphutho-tt78admindemo.vnpt-invoice.com.vn/portalservice.asmx",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:48:15.653Z"
+      },
+      {
+        "id": 12,
+        "tenThamSo": "C_PASSWORD_ID",
+        "giaTri": "123456aA@78",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:48:39.053Z"
+      },
+      {
+        "id": 13,
+        "tenThamSo": "C_USER_ID",
+        "giaTri": "bvdkphuthoadmin_demo",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T07:26:23.445Z"
+      },
+      {
+        "id": 14,
+        "tenThamSo": "WS_PASSWORD_ID",
+        "giaTri": "123456aA@78",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:48:48.254Z"
+      },
+      {
+        "id": 15,
+        "tenThamSo": "WS_USER_ID",
+        "giaTri": "bvdkphuthows",
+        "createdAt": "2026-07-03T11:02:20.989Z",
+        "updatedAt": "2026-07-03T06:48:54.723Z"
+      }
+    ]
+  }
+}

@@ -85,6 +85,26 @@ export class InvoicesController {
     });
   }
 
+  @Get('reports/detail-by-period-range')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
+  getDetailReportByPeriodRange(
+    @Query('fromKy') fromKy?: string,
+    @Query('toKy') toKy?: string,
+    @Query('collectorId') collectorId?: string,
+    @Query('routeId') routeId?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.invoicesService.getDetailReportByPeriodRange({
+      fromKy,
+      toKy,
+      collectorId: collectorId ? Number(collectorId) : undefined,
+      routeId: routeId ? Number(routeId) : undefined,
+      page: Number(page),
+      limit: Number(limit),
+    });
+  }
+
   @Get('reports/detail-by-date')
   @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getDetailReportByDate(

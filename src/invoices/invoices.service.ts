@@ -527,6 +527,174 @@ export class InvoicesService {
     };
   }
 
+  async getDetailReportByPeriodRange(params: {
+    fromKy?: string;
+    toKy?: string;
+    collectorId?: number;
+    routeId?: number;
+    page?: number;
+    limit?: number;
+  }) {
+    const fromKy = params.fromKy?.trim();
+    const toKy = params.toKy?.trim();
+
+    if (!fromKy || !toKy) {
+      throw new BadRequestException('Vui lòng chọn Từ kỳ và Đến kỳ');
+    }
+
+    const [fromPeriod, toPeriod] = await this.prisma.$transaction([
+      this.prisma.billingPeriod.findUnique({ where: { maKy: fromKy } }),
+      this.prisma.billingPeriod.findUnique({ where: { maKy: toKy } }),
+    ]);
+
+    if (!fromPeriod || !toPeriod) {
+      throw new BadRequestException('Kỳ hóa đơn không tồn tại');
+    }
+
+    if (fromPeriod.ngayBatDau > toPeriod.ngayKetThuc) {
+      throw new BadRequestException('Từ kỳ phải nhỏ hơn hoặc bằng Đến kỳ');
+    }
+
+    const periods = await this.prisma.billingPeriod.findMany({
+      where: {
+        ngayBatDau: { gte: fromPeriod.ngayBatDau },
+        ngayKetThuc: { lte: toPeriod.ngayKetThuc },
+      },
+      select: { maKy: true },
+      orderBy: { ngayBatDau: 'asc' },
+    });
+
+    const kyList = periods.map((item) => item.maKy);
+    if (kyList.length === 0) {
+      return {
+        data: [],
+        summary: {
+          soHoDaThu: 0,
+          soHoaDonDaPhatHanh: 0,
+          tongTien: 0,
+          thue: 0,
+          tongCong: 0,
+        },
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
+    const normalizedPage = Number.isFinite(params.page) && (params.page ?? 0) > 0 ? Number(params.page) : 1;
+    const normalizedLimit = Number.isFinite(params.limit)
+      ? Math.min(Math.max(Number(params.limit), 1), 200)
+      : 20;
+    const skip = (normalizedPage - 1) * normalizedLimit;
+
+    const where: Prisma.InvoiceWhereInput = {
+      kyHoaDon: { in: kyList },
+      trangThaiThanhToan: InvoicePaymentStatus.PAID,
+      household: {
+        tuyenThuRacId:
+          Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
+            ? Number(params.routeId)
+            : undefined,
+        tuyenThuRac: {
+          staffId:
+            Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
+              ? Number(params.collectorId)
+              : undefined,
+        },
+      },
+    };
+
+    const [rows, totalRows] = await this.prisma.$transaction([
+      this.prisma.invoice.findMany({
+        where,
+        skip,
+        take: normalizedLimit,
+        orderBy: [{ kyHoaDon: 'asc' }, { paymentDate: 'desc' }, { id: 'desc' }],
+        include: {
+          household: {
+            select: {
+              id: true,
+              maHoDan: true,
+              tenChuHo: true,
+              diaChi: true,
+              tuyenThuRac: {
+                select: {
+                  id: true,
+                  maTuyen: true,
+                  tenTuyen: true,
+                  staff: {
+                    select: {
+                      id: true,
+                      hoVaTen: true,
+                      taiKhoan: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    const mappedRows = rows.map((item) => {
+      const totalAmount = Number(item.tongTien) + Number(item.thue);
+      return {
+        invoiceId: item.id,
+        kyHoaDon: item.kyHoaDon,
+        maHoDan: item.household?.maHoDan ?? '---',
+        tenChuHo: item.household?.tenChuHo ?? '---',
+        diaChi: item.household?.diaChi ?? '---',
+        tuyenThuRac: item.household?.tuyenThuRac?.tenTuyen ?? '---',
+        nguoiThu:
+          item.household?.tuyenThuRac?.staff?.hoVaTen ||
+          item.household?.tuyenThuRac?.staff?.taiKhoan ||
+          '---',
+        invoiceSerial: item.invoiceSerial,
+        invoiceFkey: item.invoiceFkey,
+        daPhatHanh: item.invoicePublishStatus === 'SUCCESS',
+        tongTien: Number(item.tongTien),
+        thue: Number(item.thue),
+        tongCong: totalAmount,
+        paymentDate: item.paymentDate,
+      };
+    });
+
+    const sum = mappedRows.reduce(
+      (acc, item) => {
+        acc.tongTien += item.tongTien;
+        acc.thue += item.thue;
+        acc.tongCong += item.tongCong;
+        if (item.daPhatHanh) {
+          acc.soHoaDonDaPhatHanh += 1;
+        }
+        return acc;
+      },
+      {
+        soHoDaThu: mappedRows.length,
+        soHoaDonDaPhatHanh: 0,
+        tongTien: 0,
+        thue: 0,
+        tongCong: 0,
+      },
+    );
+
+    return {
+      data: mappedRows,
+      summary: sum,
+      pagination: {
+        page: normalizedPage,
+        limit: normalizedLimit,
+        total: totalRows,
+        totalPages: Math.ceil(totalRows / normalizedLimit),
+      },
+    };
+  }
+
   async getDetailReportByDate(params: {
     fromDate?: string;
     toDate?: string;

@@ -181,6 +181,19 @@
   color: #ffffff !important;
 }
 
+.report-pdf-btn {
+  background: #d32f2f !important;
+  border-color: #b71c1c !important;
+  color: #ffffff !important;
+}
+
+.report-pdf-btn:hover,
+.report-pdf-btn:focus {
+  background: #b71c1c !important;
+  border-color: #8e1515 !important;
+  color: #ffffff !important;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

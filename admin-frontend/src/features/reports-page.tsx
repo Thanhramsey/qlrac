@@ -721,8 +721,11 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
       item.loaiDichVu,
       item.tongSoHo,
       item.daThuSoHo,
+      item.chuaThuSoHo,
       item.tongTien,
       item.tongThue,
+      item.daThuCong,
+      item.chuaThuCong,
       item.tongCong,
     ])
 
@@ -732,15 +735,18 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
       '',
       revenueData.reduce((sum, item) => sum + item.tongSoHo, 0),
       revenueData.reduce((sum, item) => sum + item.daThuSoHo, 0),
+      revenueData.reduce((sum, item) => sum + item.chuaThuSoHo, 0),
       revenueData.reduce((sum, item) => sum + item.tongTien, 0),
       revenueData.reduce((sum, item) => sum + item.tongThue, 0),
       revenueData.reduce((sum, item) => sum + item.tongCong, 0),
+      revenueData.reduce((sum, item) => sum + item.daThuCong, 0),
+      revenueData.reduce((sum, item) => sum + item.chuaThuCong, 0),
     ]
 
     await exportSheetToExcel(
       'Báo cáo tổng hợp doanh số',
       'BaoCaoTongHop',
-      ['Kỳ hóa đơn', 'Tuyến đường', 'Loại dịch vụ', 'Tổng số hộ', 'Đã thu (hộ)', 'Tiền dịch vụ', 'Thuế', 'Tổng tiền'],
+      ['Kỳ hóa đơn', 'Tuyến đường', 'Loại dịch vụ', 'Tổng số hộ', 'Đã thu (hộ)', 'Chưa thu (hộ)', 'Tiền dịch vụ', 'Thuế', 'Đã thu tiền', 'Chưa thu tiền', 'Tổng tiền'],
       body,
       totalRow,
       `bao-cao-tong-hop-doanh-so-${fileTimestamp()}.xlsx`,
@@ -873,14 +879,17 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
       item.loaiDichVu,
       item.tongSoHo,
       item.daThuSoHo,
+      item.chuaThuSoHo,
       formatCurrency(item.tongTien),
       formatCurrency(item.tongThue),
+      formatCurrency(item.daThuCong),
+      formatCurrency(item.chuaThuCong),
       formatCurrency(item.tongCong),
     ])
 
     exportSimplePdf(
       'Báo cáo tổng hợp doanh số',
-      ['Kỳ', 'Tuyến', 'Dịch vụ', 'Tổng hộ', 'Đã thu', 'Tiền DV', 'Thuế', 'Tổng tiền'],
+      ['Kỳ', 'Tuyến', 'Dịch vụ', 'Tổng hộ', 'Đã thu', 'Chưa thu', 'Tiền DV', 'Thuế', 'Đã thu tiền', 'Chưa thu tiền', 'Tổng tiền'],
       body,
       [
         'Tổng cộng',
@@ -888,8 +897,11 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
         '',
         revenueData.reduce((sum, item) => sum + item.tongSoHo, 0),
         revenueData.reduce((sum, item) => sum + item.daThuSoHo, 0),
+        revenueData.reduce((sum, item) => sum + item.chuaThuSoHo, 0),
         formatCurrency(revenueData.reduce((sum, item) => sum + item.tongTien, 0)),
         formatCurrency(revenueData.reduce((sum, item) => sum + item.tongThue, 0)),
+        formatCurrency(revenueData.reduce((sum, item) => sum + item.daThuCong, 0)),
+        formatCurrency(revenueData.reduce((sum, item) => sum + item.chuaThuCong, 0)),
         formatCurrency(revenueData.reduce((sum, item) => sum + item.tongCong, 0)),
       ],
       `bao-cao-tong-hop-doanh-so-${fileTimestamp()}.pdf`,
@@ -1302,9 +1314,12 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
                     <Space wrap>
                       <Tag color="blue">Tổng số hộ: {revenueSummary.tongSoHo}</Tag>
                       <Tag color="success">Đã thu: {revenueSummary.daThuSoHo}</Tag>
+                      <Tag color="warning">Chưa thu: {revenueSummary.chuaThuSoHo}</Tag>
                       <Tag color="processing">Tiền DV: {formatCurrency(revenueSummary.tongTien)}</Tag>
                       <Tag color="warning">Thuế: {formatCurrency(revenueSummary.tongThue)}</Tag>
                       <Tag color="purple">Tổng cộng: {formatCurrency(revenueSummary.tongCong)}</Tag>
+                      <Tag color="green">Đã thu tiền: {formatCurrency(revenueSummary.daThuCong)}</Tag>
+                      <Tag color="gold">Chưa thu tiền: {formatCurrency(revenueSummary.chuaThuCong)}</Tag>
                     </Space>
                   ) : null}
 
@@ -1319,6 +1334,7 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
                       { title: 'Loại dịch vụ', dataIndex: 'loaiDichVu', width: 220 },
                       { title: 'Tổng số hộ', dataIndex: 'tongSoHo', width: 120 },
                       { title: 'Đã thu (hộ)', dataIndex: 'daThuSoHo', width: 120 },
+                      { title: 'Chưa thu (hộ)', dataIndex: 'chuaThuSoHo', width: 120 },
                       {
                         title: 'Tiền dịch vụ',
                         width: 150,
@@ -1328,6 +1344,16 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
                         title: 'Thuế',
                         width: 150,
                         render: (_, record) => formatCurrency(record.tongThue),
+                      },
+                      {
+                        title: 'Đã thu tiền',
+                        width: 150,
+                        render: (_, record) => formatCurrency(record.daThuCong),
+                      },
+                      {
+                        title: 'Chưa thu tiền',
+                        width: 150,
+                        render: (_, record) => formatCurrency(record.chuaThuCong),
                       },
                       {
                         title: 'Tổng tiền',
@@ -1352,15 +1378,30 @@ export function ReportsPage({ initialTab = 'detail-by-period' }: ReportsPageProp
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={5}>
                           <Typography.Text strong>
-                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.tongTien, 0))}
+                            {revenueData.reduce((sum, item) => sum + item.chuaThuSoHo, 0)}
                           </Typography.Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={6}>
                           <Typography.Text strong>
-                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.tongThue, 0))}
+                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.tongTien, 0))}
                           </Typography.Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={7}>
+                          <Typography.Text strong>
+                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.tongThue, 0))}
+                          </Typography.Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={8}>
+                          <Typography.Text strong>
+                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.daThuCong, 0))}
+                          </Typography.Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={9}>
+                          <Typography.Text strong>
+                            {formatCurrency(revenueData.reduce((sum, item) => sum + item.chuaThuCong, 0))}
+                          </Typography.Text>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={10}>
                           <Typography.Text strong>
                             {formatCurrency(revenueData.reduce((sum, item) => sum + item.tongCong, 0))}
                           </Typography.Text>

@@ -422,6 +422,73 @@ async function renderTextAsCanvas(title: string, content: string) {
   }
 }
 
+async function renderHtmlAsCanvas(htmlContent: string) {
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.left = '-10000px'
+  iframe.style.top = '0'
+  iframe.style.width = '1200px'
+  iframe.style.height = '1600px'
+  iframe.style.border = '0'
+  iframe.setAttribute('sandbox', 'allow-same-origin')
+
+  document.body.appendChild(iframe)
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error('Render HTML hóa đơn bị timeout')), 7000)
+      iframe.onload = () => {
+        window.clearTimeout(timer)
+        resolve()
+      }
+      iframe.srcdoc = htmlContent
+    })
+
+    const doc = iframe.contentDocument
+    if (!doc?.documentElement) {
+      throw new Error('Không thể đọc nội dung HTML hóa đơn')
+    }
+
+    const root = doc.documentElement as HTMLElement
+    const width = Math.max(root.scrollWidth, 1100)
+    const height = Math.max(root.scrollHeight, 1200)
+
+    return await html2canvas(root, {
+      scale: 1.4,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      windowWidth: width,
+      windowHeight: height,
+    })
+  } finally {
+    document.body.removeChild(iframe)
+  }
+}
+
+function saveCanvasAsPdf(canvas: HTMLCanvasElement, filename: string) {
+  const pdf = new jsPDF('p', 'mm', 'a4')
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  const imgWidth = pageWidth
+  const imgHeight = (canvas.height * imgWidth) / canvas.width
+  const imgData = canvas.toDataURL('image/jpeg', 0.72)
+
+  let heightLeft = imgHeight
+  let position = 0
+
+  pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+  heightLeft -= pageHeight
+
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight
+    pdf.addPage()
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+    heightLeft -= pageHeight
+  }
+
+  pdf.save(filename)
+}
+
 function base64ToBlob(base64: string, mimeType: string) {
   const binary = atob(base64.replace(/\s+/g, ''))
   const bytes = new Uint8Array(binary.length)
@@ -518,7 +585,7 @@ async function renderReceiptCanvas(item: InvoiceItem, unitInfo: UnitInfo) {
   }
 
   const canvas = await html2canvas(receiptElement, {
-    scale: 2,
+    scale: 1.4,
     useCORS: true,
     backgroundColor: '#ffffff',
   })
@@ -533,7 +600,7 @@ async function downloadReceipts(items: InvoiceItem[], mode: 'pdf' | 'image', uni
 
     for (let index = 0; index < items.length; index += 1) {
       const canvas = await renderReceiptCanvas(items[index], unitInfo)
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/jpeg', 0.72)
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
       const imgWidth = pageWidth
@@ -544,7 +611,7 @@ async function downloadReceipts(items: InvoiceItem[], mode: 'pdf' | 'image', uni
         pdf.addPage()
       }
 
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, renderHeight)
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, renderHeight, undefined, 'FAST')
     }
 
     pdf.save(`phieu-thu-${Date.now()}.pdf`)
@@ -554,9 +621,11 @@ async function downloadReceipts(items: InvoiceItem[], mode: 'pdf' | 'image', uni
   for (const item of items) {
     const canvas = await renderReceiptCanvas(item, unitInfo)
     const code = `PT${String(item.id).padStart(6, '0')}`
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((imageBlob) => resolve(imageBlob), 'image/jpeg', 0.78),
+    )
     if (blob) {
-      saveBlob(blob, `phieu-thu-${code}.png`)
+      saveBlob(blob, `phieu-thu-${code}.jpg`)
     }
   }
 }
@@ -991,7 +1060,7 @@ export function InvoiceCollectionsPage() {
     }
   }
 
-  const downloadVnptInvoice = async (invoiceId: number) => {
+  const downloadVnptInvoice = async (invoiceId: number, output: 'pdf' | 'image') => {
     try {
       const response = await apiClient.get(`/invoices/${invoiceId}/download-vnpt`)
       const payload = response.data as {
@@ -1014,26 +1083,36 @@ export function InvoiceCollectionsPage() {
 
       if (isHtml) {
         const htmlContent = String(payload.content)
-        const htmlBlob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
-        const htmlUrl = URL.createObjectURL(htmlBlob)
-        const opened = window.open(htmlUrl, '_blank', 'noopener,noreferrer')
-        window.setTimeout(() => URL.revokeObjectURL(htmlUrl), 60_000)
-
-        if (!opened) {
-          message.warning('Trình duyệt chặn popup xem hóa đơn. Vui lòng cho phép popup để xem hóa đơn VNPT.')
-          saveBlob(htmlBlob, `hoa-don-${invoiceId}.html`)
-          message.info('Hệ thống đã tải file HTML hóa đơn để bạn mở thủ công.')
+        const canvas = await renderHtmlAsCanvas(htmlContent)
+        if (output === 'pdf') {
+          saveCanvasAsPdf(canvas, `hoa-don-${invoiceId}.pdf`)
+          message.success('Đã chuyển HTML hóa đơn VNPT sang PDF')
           return
         }
 
-        message.success('Đã mở view hóa đơn VNPT')
+        const imageBlob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.78)
+        })
+
+        if (!imageBlob) {
+          throw new Error('Không thể tạo ảnh từ HTML hóa đơn VNPT')
+        }
+
+        saveBlob(imageBlob, `hoa-don-${invoiceId}.jpg`)
+        message.success('Đã chuyển HTML hóa đơn VNPT sang ảnh')
         return
       }
 
       if (payload.base64 && isPdf) {
         const pdfBlob = base64ToBlob(payload.content, 'application/pdf')
+        if (output === 'pdf') {
+          saveBlob(pdfBlob, `hoa-don-${invoiceId}.pdf`)
+          message.success('Đã tải hóa đơn PDF từ VNPT')
+          return
+        }
+
+        message.warning('VNPT trả về PDF gốc, hệ thống sẽ tải PDF để giữ đúng nội dung hóa đơn.')
         saveBlob(pdfBlob, `hoa-don-${invoiceId}.pdf`)
-        message.success('Đã tải hóa đơn PDF từ VNPT')
         return
       }
 
@@ -1041,29 +1120,59 @@ export function InvoiceCollectionsPage() {
         const extension = (payload.mimeType || '').includes('png') ? 'png' : 'jpg'
         const imageBlob = base64ToBlob(payload.content, payload.mimeType || 'image/png')
 
-        saveBlob(imageBlob, `hoa-don-${invoiceId}.${extension}`)
-        message.success('Đã tải hóa đơn ảnh từ VNPT')
+        if (output === 'image') {
+          saveBlob(imageBlob, `hoa-don-${invoiceId}.${extension}`)
+          message.success('Đã tải hóa đơn ảnh từ VNPT')
+          return
+        }
+
+        const imageUrl = URL.createObjectURL(imageBlob)
+        const img = new window.Image()
+        img.src = imageUrl
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve()
+          img.onerror = () => reject(new Error('Không thể đọc ảnh hóa đơn VNPT'))
+        })
+
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const context = canvas.getContext('2d')
+        if (!context) {
+          URL.revokeObjectURL(imageUrl)
+          throw new Error('Không thể xử lý ảnh hóa đơn VNPT')
+        }
+        context.drawImage(img, 0, 0)
+        URL.revokeObjectURL(imageUrl)
+        saveCanvasAsPdf(canvas, `hoa-don-${invoiceId}.pdf`)
+        message.success('Đã chuyển ảnh hóa đơn VNPT sang PDF')
         return
       }
 
       const textContent = String(payload.content)
       const canvas = await renderTextAsCanvas(`Hóa đơn VNPT #${invoiceId}`, textContent)
       const imageBlob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob), 'image/png')
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.78)
       })
 
       if (!imageBlob) {
         throw new Error('Không thể tạo file ảnh hóa đơn')
       }
 
-      saveBlob(imageBlob, `hoa-don-${invoiceId}.png`)
+      if (output === 'pdf') {
+        saveCanvasAsPdf(canvas, `hoa-don-${invoiceId}.pdf`)
+        message.info('VNPT không trả định dạng chuẩn, hệ thống đã chuyển nội dung thành PDF.')
+        return
+      }
+
+      saveBlob(imageBlob, `hoa-don-${invoiceId}.jpg`)
       message.info('VNPT không trả HTML/PDF chuẩn, hệ thống đã tải ảnh nội dung hóa đơn.')
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Không thể tải hóa đơn VNPT')
     }
   }
 
-  const runBatchInvoiceDownload = async (invoiceIds: number[]) => {
+  const runBatchInvoiceDownload = async (invoiceIds: number[], output: 'pdf' | 'image') => {
     if (invoiceIds.length === 0) {
       message.warning('Vui lòng chọn hóa đơn để tải')
       return
@@ -1071,7 +1180,7 @@ export function InvoiceCollectionsPage() {
 
     for (const id of invoiceIds) {
       // eslint-disable-next-line no-await-in-loop
-      await downloadVnptInvoice(id)
+      await downloadVnptInvoice(id, output)
     }
   }
 
@@ -1098,24 +1207,34 @@ export function InvoiceCollectionsPage() {
               menu={{
                 items: [
                   {
-                    key: 'invoice',
-                    label: 'Tải hóa đơn VNPT',
-                    icon: <DownloadOutlined />,
+                    key: 'invoice-pdf',
+                    label: 'Tải hóa đơn PDF',
+                    icon: <FilePdfOutlined />,
+                  },
+                  {
+                    key: 'invoice-image',
+                    label: 'Tải hóa đơn ảnh',
+                    icon: <FileImageOutlined />,
                   },
                   {
                     key: 'receipt-pdf',
-                    label: 'Tải phiếu PDF',
+                    label: 'Tải phiếu thu PDF',
                     icon: <FilePdfOutlined />,
                   },
                   {
                     key: 'receipt-image',
-                    label: 'Tải phiếu ảnh',
+                    label: 'Tải phiếu thu ảnh',
                     icon: <FileImageOutlined />,
                   },
                 ],
                 onClick: ({ key }) => {
-                  if (key === 'invoice') {
-                    void runBatchInvoiceDownload(selectedRowKeys)
+                  if (key === 'invoice-pdf') {
+                    void runBatchInvoiceDownload(selectedRowKeys, 'pdf')
+                    return
+                  }
+
+                  if (key === 'invoice-image') {
+                    void runBatchInvoiceDownload(selectedRowKeys, 'image')
                     return
                   }
 
@@ -1140,7 +1259,7 @@ export function InvoiceCollectionsPage() {
               icon={<CloudUploadOutlined />}
               onClick={() => void publishInvoices(selectedRowKeys)}
             >
-              Xuất hóa đơn VNPT
+              Xuất hóa đơn ĐT
             </Button>
             <Button
               className="toolbar-sync-btn"
@@ -1317,7 +1436,7 @@ export function InvoiceCollectionsPage() {
                     onClick={() => void publishInvoices([record.id])}
                     disabled={record.invoicePublishStatus === 'SUCCESS'}
                   >
-                    Xuất VNPT
+                    Xuất HĐĐT
                   </Button>
                   <Button
                     className="invoice-action-btn collect"
@@ -1351,19 +1470,25 @@ export function InvoiceCollectionsPage() {
                           type: 'divider',
                         },
                         {
-                          key: 'invoice',
-                          label: 'Tải hóa đơn VNPT',
-                          icon: <DownloadOutlined />,
+                          key: 'invoice-pdf',
+                          label: 'Tải hóa đơn PDF',
+                          icon: <FilePdfOutlined />,
+                          disabled: !record.invoiceFkey,
+                        },
+                        {
+                          key: 'invoice-image',
+                          label: 'Tải hóa đơn ảnh',
+                          icon: <FileImageOutlined />,
                           disabled: !record.invoiceFkey,
                         },
                         {
                           key: 'receipt-pdf',
-                          label: 'Tải phiếu PDF',
+                          label: 'Tải phiếu thu PDF',
                           icon: <FilePdfOutlined />,
                         },
                         {
                           key: 'receipt-image',
-                          label: 'Tải phiếu ảnh',
+                          label: 'Tải phiếu thu ảnh',
                           icon: <FileImageOutlined />,
                         },
                       ],
@@ -1383,8 +1508,13 @@ export function InvoiceCollectionsPage() {
                           return
                         }
 
-                        if (key === 'invoice') {
-                          void downloadVnptInvoice(record.id)
+                        if (key === 'invoice-pdf') {
+                          void downloadVnptInvoice(record.id, 'pdf')
+                          return
+                        }
+
+                        if (key === 'invoice-image') {
+                          void downloadVnptInvoice(record.id, 'image')
                           return
                         }
 

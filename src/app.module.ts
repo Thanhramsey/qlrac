@@ -17,6 +17,7 @@ import { ServiceCatalogsModule } from './service-catalogs/service-catalogs.modul
 import { MenusModule } from './menus/menus.module';
 import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
 import { SystemParametersModule } from './system-parameters/system-parameters.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SystemParametersModule } from './system-parameters/system-parameters.mo
     ServiceCatalogsModule,
     BillingPeriodsModule,
     SystemParametersModule,
+    DashboardModule,
     MenusModule,
     AuthModule,
   ],

@@ -15,6 +15,8 @@ import { WardsModule } from './wards/wards.module';
 import { LocalitiesModule } from './localities/localities.module';
 import { ServiceCatalogsModule } from './service-catalogs/service-catalogs.module';
 import { MenusModule } from './menus/menus.module';
+import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
+import { SystemParametersModule } from './system-parameters/system-parameters.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { MenusModule } from './menus/menus.module';
     WardsModule,
     LocalitiesModule,
     ServiceCatalogsModule,
+    BillingPeriodsModule,
+    SystemParametersModule,
     MenusModule,
     AuthModule,
   ],

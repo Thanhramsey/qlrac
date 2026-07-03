@@ -55,6 +55,22 @@
   padding-inline: 24px;
 }
 
+.logout-button {
+  min-height: 42px;
+  min-width: 130px;
+  padding-inline: 18px !important;
+  border-radius: 12px !important;
+  font-weight: 600;
+  background: linear-gradient(120deg, #145267, #227694) !important;
+  border-color: #1f6279 !important;
+}
+
+.logout-button:hover,
+.logout-button:focus {
+  background: linear-gradient(120deg, #11495c, #1d6782) !important;
+  border-color: #1b596f !important;
+}
+
 .app-content {
   padding: 24px;
 }
@@ -173,6 +189,48 @@
   background: rgba(33, 109, 132, 0.08) !important;
 }
 
+.receipt-action-btn {
+  border-radius: 10px !important;
+  font-weight: 700;
+}
+
+.receipt-gen-btn {
+  background: linear-gradient(120deg, #0f7c57, #0b6a6c) !important;
+  border-color: #0d6f60 !important;
+}
+
+.receipt-gen-btn:hover,
+.receipt-gen-btn:focus {
+  background: linear-gradient(120deg, #0d6f4e, #0a5d5f) !important;
+  border-color: #0a5f55 !important;
+}
+
+.receipt-pdf-btn {
+  background: linear-gradient(120deg, #d64545, #b4202f) !important;
+  border-color: #ad2432 !important;
+  color: #ffffff !important;
+}
+
+.receipt-pdf-btn:hover,
+.receipt-pdf-btn:focus {
+  background: linear-gradient(120deg, #bc3333, #951826) !important;
+  border-color: #911421 !important;
+  color: #ffffff !important;
+}
+
+.receipt-image-btn {
+  background: linear-gradient(120deg, #1f6dbe, #244da6) !important;
+  border-color: #25529d !important;
+  color: #ffffff !important;
+}
+
+.receipt-image-btn:hover,
+.receipt-image-btn:focus {
+  background: linear-gradient(120deg, #1a5ea6, #203f89) !important;
+  border-color: #1f3d80 !important;
+  color: #ffffff !important;
+}
+
 @media (max-width: 768px) {
   .app-content {
     padding: 12px;
@@ -180,6 +238,12 @@
 
   .app-header {
     padding-inline: 12px;
+  }
+
+  .logout-button {
+    min-width: 118px;
+    min-height: 40px;
+    padding-inline: 14px !important;
   }
 
   .form-grid {

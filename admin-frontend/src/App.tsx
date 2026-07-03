@@ -1,6 +1,5 @@
 import {
-  Avatar,
-  Dropdown,
+  Button,
   Layout,
   Menu,
   Spin,
@@ -8,7 +7,7 @@ import {
   Typography,
   message,
 } from 'antd'
-import { TeamOutlined, UserSwitchOutlined } from '@ant-design/icons'
+import { LogoutOutlined, TeamOutlined, UserSwitchOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
 import {
   apiClient,
@@ -21,10 +20,14 @@ import {
 import { LoginPage } from './features/login-page'
 import { LocationsPage } from './features/locations-page'
 import { HouseholdsPage } from './features/households-page'
+import { InvoiceCollectionsPage } from './features/invoice-collections-page'
+import BillingPeriodsPage from './features/billing-periods-page'
 import { RolesPage } from './features/roles-page'
 import { ServiceCatalogsPage } from './features/service-catalogs-page'
+import { SystemParametersPage } from './features/system-parameters-page'
 import { UserPermissionsPage } from './features/user-permissions-page'
 import { UsersPage } from './features/users-page'
+import { ReportsPage } from './features/reports-page'
 import type { LoginResponse, RoleOption } from './types'
 import './App.css'
 
@@ -263,25 +266,18 @@ function App() {
             </Typography.Text>
           </Space>
 
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'logout',
-                  label: 'Đăng xuất',
-                  onClick: () => {
-                    clearAuthState(setSession)
-                    setRoles([])
-                    setActiveMenuKey('')
-                  },
-                },
-              ],
+          <Button
+            type="primary"
+            icon={<LogoutOutlined />}
+            className="logout-button"
+            onClick={() => {
+              clearAuthState(setSession)
+              setRoles([])
+              setActiveMenuKey('')
             }}
           >
-            <Avatar style={{ backgroundColor: '#214d60', cursor: 'pointer' }}>
-              {session.user.hoVaTen.slice(0, 1).toUpperCase()}
-            </Avatar>
-          </Dropdown>
+            Đăng xuất
+          </Button>
         </Header>
 
         <Content className="app-content">
@@ -310,6 +306,18 @@ function App() {
             />
           ) : null}
           {!rolesLoading && activeMenuKey === 'service-catalogs' ? <ServiceCatalogsPage /> : null}
+          {!rolesLoading && activeMenuKey === 'system-parameters' ? <SystemParametersPage /> : null}
+          {!rolesLoading && activeMenuKey === 'billing-periods' ? <BillingPeriodsPage /> : null}
+          {!rolesLoading && activeMenuKey === 'invoice-collections' ? <InvoiceCollectionsPage /> : null}
+          {!rolesLoading && (activeMenuKey === 'reports' || activeMenuKey === 'reports-detail-period') ? (
+            <ReportsPage initialTab="detail-by-period" />
+          ) : null}
+          {!rolesLoading && activeMenuKey === 'reports-detail-date' ? (
+            <ReportsPage initialTab="detail-by-date" />
+          ) : null}
+          {!rolesLoading && activeMenuKey === 'reports-revenue-summary' ? (
+            <ReportsPage initialTab="revenue-summary" />
+          ) : null}
         </Content>
       </Layout>
     </Layout>

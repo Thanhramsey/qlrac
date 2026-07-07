@@ -1,4 +1,4 @@
-import { Button, Card, Col, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message } from 'antd'
+import { Button, Card, Col, Row, Select, Space, Statistic, Tag, Tooltip, Typography, message } from 'antd'
 import { BarChartOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../api/axios.instance'
@@ -25,18 +25,7 @@ function statusColor(status: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED') {
   return 'warning'
 }
 
-function statusLabel(status: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED') {
-  if (status === 'PUBLISHED') {
-    return 'Đã xuất hóa đơn'
-  }
-  if (status === 'PAID') {
-    return 'Đã thu (chưa xuất HĐ)'
-  }
-  if (status === 'OVERDUE') {
-    return 'Quá hạn'
-  }
-  return 'Chưa thanh toán'
-}
+
 
 export function DashboardPage() {
   const [loading, setLoading] = useState(false)
@@ -137,41 +126,7 @@ export function DashboardPage() {
 
   const shouldShowLineChart = (overview?.invoiceTrendChart?.length ?? 0) >= 2
 
-  const columns = [
-    {
-      title: 'Kỳ',
-      dataIndex: 'kyHoaDon',
-      key: 'kyHoaDon',
-      width: 120,
-    },
-    {
-      title: 'Mã hộ',
-      key: 'maHoDan',
-      render: (_: unknown, record: DashboardOverviewResponse['recentInvoices'][number]) => record.household.maHoDan,
-      width: 120,
-    },
-    {
-      title: 'Chủ hộ',
-      key: 'tenChuHo',
-      render: (_: unknown, record: DashboardOverviewResponse['recentInvoices'][number]) => record.household.tenChuHo,
-    },
-    {
-      title: 'Trạng thái',
-      key: 'trangThaiThanhToan',
-      render: (_: unknown, record: DashboardOverviewResponse['recentInvoices'][number]) => (
-        <Tag color={statusColor(record.trangThaiThanhToan)}>{statusLabel(record.trangThaiThanhToan)}</Tag>
-      ),
-      width: 160,
-    },
-    {
-      title: 'Tổng thanh toán',
-      key: 'tongThanhToan',
-      align: 'right' as const,
-      render: (_: unknown, record: DashboardOverviewResponse['recentInvoices'][number]) =>
-        formatCurrency(record.tongThanhToan),
-      width: 180,
-    },
-  ]
+  // Removed columns since Recent Invoices table is replaced by Staff Progress Chart
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -375,17 +330,94 @@ export function DashboardPage() {
         title={
           <Space>
             <BarChartOutlined />
-            <span>Hóa đơn cập nhật gần đây</span>
+            <span>Tiến trình thu gom của nhân viên</span>
           </Space>
         }
       >
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={overview?.recentInvoices ?? []}
-          pagination={false}
-          scroll={{ x: 860 }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {(overview?.staffProgress ?? []).length === 0 ? (
+            <Typography.Text type="secondary">Không có dữ liệu tiến trình thu gom</Typography.Text>
+          ) : (
+            (overview?.staffProgress ?? []).map((item) => (
+              <div key={item.staffId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography.Text strong>{item.staffName}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Đã thu: <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{item.paidCount}</span> / Chưa thu:{' '}
+                    <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{item.unpaidCount}</span> (Tổng: {item.totalCount} hộ)
+                  </Typography.Text>
+                </div>
+                <div
+                  style={{
+                    height: 24,
+                    width: '100%',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    display: 'flex',
+                  }}
+                >
+                  {item.paidPercentage > 0 && (
+                    <Tooltip title={`Đã thu: ${item.paidCount}/${item.totalCount} hộ (${item.paidPercentage}%)`}>
+                      <div
+                        style={{
+                          width: `${item.paidPercentage}%`,
+                          backgroundColor: '#52c41a',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          transition: 'width 0.3s ease',
+                        }}
+                      >
+                        {item.paidPercentage >= 10 ? `${item.paidPercentage}%` : ''}
+                      </div>
+                    </Tooltip>
+                  )}
+                  {item.unpaidPercentage > 0 && (
+                    <Tooltip title={`Chưa thu: ${item.unpaidCount}/${item.totalCount} hộ (${item.unpaidPercentage}%)`}>
+                      <div
+                        style={{
+                          width: `${item.unpaidPercentage}%`,
+                          backgroundColor: '#ff4d4f',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          transition: 'width 0.3s ease',
+                        }}
+                      >
+                        {item.unpaidPercentage >= 10 ? `${item.unpaidPercentage}%` : ''}
+                      </div>
+                    </Tooltip>
+                  )}
+                  {item.totalCount === 0 && (
+                    <div
+                      style={{
+                        width: '100%',
+                        backgroundColor: '#d9d9d9',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#595959',
+                        fontSize: 11,
+                      }}
+                    >
+                      Chưa giao tuyến / Không có hóa đơn
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </Card>
     </Space>
   )

@@ -18,6 +18,7 @@ import dayjs from 'dayjs'
 import {
   DeleteOutlined,
   EditOutlined,
+  ExclamationCircleOutlined,
   PlusOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
@@ -150,13 +151,76 @@ export function UsersPage({ roles }: UsersPageProps) {
   const onSaveUser = async () => {
     try {
       const values = await form.validateFields()
-      setSaving(true)
 
       const payload = {
         ...values,
         ngaySinh: values.ngaySinh ? values.ngaySinh.format('YYYY-MM-DD') : undefined,
         routeIds: values.routeIds ?? [],
       }
+
+      // Check for route conflicts: find routes that are already assigned to other users
+      if ((values.routeIds ?? []).length > 0) {
+        type ConflictInfo = { routeName: string; staffName: string; staffId: number }
+        const conflicts: ConflictInfo[] = []
+
+        for (const routeId of values.routeIds ?? []) {
+          const route = routeOptions.find((r) => r.id === routeId)
+          if (!route || !route.staffId) continue
+          // Skip if the route is already assigned to the user being edited
+          if (editingUser && route.staffId === editingUser.id) continue
+
+          const currentStaff = listData.find((u) => u.id === route.staffId)
+          if (currentStaff) {
+            conflicts.push({
+              routeName: `${route.tenTuyen} (${route.maTuyen})`,
+              staffName: currentStaff.hoVaTen,
+              staffId: currentStaff.id,
+            })
+          }
+        }
+
+        if (conflicts.length > 0) {
+          // Group conflicts by staffId
+          const byStaff = conflicts.reduce<Record<number, { staffName: string; routes: string[] }>>(
+            (acc, c) => {
+              if (!acc[c.staffId]) acc[c.staffId] = { staffName: c.staffName, routes: [] }
+              acc[c.staffId].routes.push(c.routeName)
+              return acc
+            },
+            {},
+          )
+
+          await new Promise<void>((resolve, reject) => {
+            Modal.confirm({
+              title: 'Cảnh báo: Các tuyến đang được phân cho nhân viên khác',
+              icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+              content: (
+                <div>
+                  <p>Các tuyến bạn vừa chọn hiện đã thuộc về nhân viên khác:</p>
+                  <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+                    {Object.values(byStaff).map((item) => (
+                      <li key={item.staffName}>
+                        <strong>{item.staffName}</strong>: {item.routes.join(', ')}
+                      </li>
+                    ))}
+                  </ul>
+                  <p style={{ marginBottom: 4 }}>Bạn có chắc chắn muốn phân lại các tuyến này không?</p>
+                  <p style={{ color: '#ff4d4f', fontSize: 12, marginBottom: 0 }}>
+                    ⚠ Lưu ý: Thao tác này sẽ khiến nhân viên kể trên mất quyền phụ trách các tuyến đó.
+                  </p>
+                </div>
+              ),
+              okText: 'Xác nhận phân lại',
+              okButtonProps: { danger: true },
+              cancelText: 'Hủy',
+              onOk: () => resolve(),
+              onCancel: () => reject(new Error('cancelled')),
+            })
+          })
+        }
+      }
+
+      setSaving(true)
 
       if (editingUser) {
         if (!payload.matKhau) {
@@ -178,7 +242,7 @@ export function UsersPage({ roles }: UsersPageProps) {
       closeModal()
       void fetchUsers(pagination.page, pagination.limit)
     } catch (error) {
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message !== 'cancelled') {
         message.error(error.message)
       }
     } finally {

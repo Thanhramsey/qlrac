@@ -412,17 +412,13 @@ export interface DashboardOverviewResponse {
     paidRevenue: number
     needToCollectRevenue: number
   }>
-  recentInvoices: Array<{
-    id: number
-    kyHoaDon: string
-    tongTien: number
-    thue: number
-    tongThanhToan: number
-    trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED'
-    createdAt: string
-    household: {
-      maHoDan: string
-      tenChuHo: string
-    }
+  staffProgress: Array<{
+    staffId: number
+    staffName: string
+    paidCount: number
+    unpaidCount: number
+    totalCount: number
+    paidPercentage: number
+    unpaidPercentage: number
   }>
 }

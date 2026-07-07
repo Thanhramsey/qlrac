@@ -169,24 +169,73 @@ export class DashboardService {
       }
     }
 
-    const recentInvoices = await this.prisma.invoice.findMany({
-      take: 8,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    const staffMembers = await this.prisma.user.findMany({
+      where: {
+        assignedRoutes: { some: {} },
+      },
       select: {
         id: true,
-        kyHoaDon: true,
-        tongTien: true,
-        thue: true,
-        trangThaiThanhToan: true,
-        createdAt: true,
-        household: {
+        hoVaTen: true,
+        taiKhoan: true,
+        assignedRoutes: {
           select: {
-            maHoDan: true,
-            tenChuHo: true,
+            id: true,
           },
         },
       },
     });
+
+    const staffProgress = await Promise.all(
+      staffMembers.map(async (staff) => {
+        const routeIds = staff.assignedRoutes.map((r) => r.id);
+        if (routeIds.length === 0) {
+          return {
+            staffId: staff.id,
+            staffName: staff.hoVaTen || staff.taiKhoan,
+            paidCount: 0,
+            unpaidCount: 0,
+            totalCount: 0,
+            paidPercentage: 0,
+            unpaidPercentage: 0,
+          };
+        }
+
+        const [paidCount, unpaidCount] = await Promise.all([
+          this.prisma.invoice.count({
+            where: {
+              ...invoiceWhere,
+              trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+              household: {
+                tuyenThuRacId: { in: routeIds },
+              },
+            },
+          }),
+          this.prisma.invoice.count({
+            where: {
+              ...invoiceWhere,
+              trangThaiThanhToan: { in: [InvoicePaymentStatus.UNPAID, InvoicePaymentStatus.OVERDUE] },
+              household: {
+                tuyenThuRacId: { in: routeIds },
+              },
+            },
+          }),
+        ]);
+
+        const totalCount = paidCount + unpaidCount;
+        const paidPercentage = totalCount > 0 ? Math.round((paidCount / totalCount) * 100) : 0;
+        const unpaidPercentage = totalCount > 0 ? 100 - paidPercentage : 0;
+
+        return {
+          staffId: staff.id,
+          staffName: staff.hoVaTen || staff.taiKhoan,
+          paidCount,
+          unpaidCount,
+          totalCount,
+          paidPercentage,
+          unpaidPercentage,
+        };
+      }),
+    );
 
     return {
       filter: {
@@ -227,16 +276,7 @@ export class DashboardService {
           }
         );
       }),
-      recentInvoices: recentInvoices.map((item) => ({
-        id: item.id,
-        kyHoaDon: item.kyHoaDon,
-        tongTien: Number(item.tongTien ?? 0),
-        thue: Number(item.thue ?? 0),
-        tongThanhToan: Number(item.tongTien ?? 0) + Number(item.thue ?? 0),
-        trangThaiThanhToan: item.trangThaiThanhToan,
-        createdAt: item.createdAt,
-        household: item.household,
-      })),
+      staffProgress,
     };
   }
 

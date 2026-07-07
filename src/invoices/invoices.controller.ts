@@ -50,6 +50,7 @@ export class InvoicesController {
     @Query('tuyenThuRacId') tuyenThuRacId?: string,
     @Query('serviceCatalogIds') serviceCatalogIds?: string,
     @Query('serviceCatalogId') serviceCatalogId?: string,
+    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('keyword') keyword?: string,
   ) {
     const parseNumberList = (raw?: string) =>
@@ -74,6 +75,7 @@ export class InvoicesController {
       kyHoaDons: kyHoaDonList,
       tuyenThuRacIds: routeIdList,
       serviceCatalogIds: serviceIdList,
+      trangThaiThanhToan,
       keyword,
     });
   }
@@ -152,16 +154,31 @@ export class InvoicesController {
   @Get('reports/detail-by-period')
   @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getDetailReportByPeriod(
+    @Req() req: Request & { user?: JwtPayload },
     @Query('kyHoaDon') kyHoaDon?: string,
+    @Query('kyHoaDons') kyHoaDons?: string,
     @Query('collectorId') collectorId?: string,
     @Query('routeId') routeId?: string,
+    @Query('routeIds') routeIds?: string,
+    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
+    const user = req.user;
+    const finalCollectorId =
+      user?.role === 'STAFF'
+        ? user.sub
+        : collectorId
+          ? Number(collectorId)
+          : undefined;
+
     return this.invoicesService.getDetailReportByPeriod({
       kyHoaDon,
-      collectorId: collectorId ? Number(collectorId) : undefined,
+      kyHoaDons,
+      collectorId: finalCollectorId,
       routeId: routeId ? Number(routeId) : undefined,
+      routeIds,
+      trangThaiThanhToan,
       page: Number(page),
       limit: Number(limit),
     });

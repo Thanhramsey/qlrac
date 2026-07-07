@@ -177,7 +177,8 @@ export default function HomeRoute() {
   const [selectedKyHoaDons, setSelectedKyHoaDons] = useState<string[]>([]);
   const [selectedRouteIds, setSelectedRouteIds] = useState<number[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
-  const [expandedFilter, setExpandedFilter] = useState<'period' | 'route' | 'service' | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
+  const [expandedFilter, setExpandedFilter] = useState<'period' | 'route' | 'service' | 'status' | null>(null);
   const [searchText, setSearchText] = useState('');
 
   const [invoices, setInvoices] = useState<HouseholdInvoiceItem[]>([]);
@@ -220,6 +221,7 @@ export default function HomeRoute() {
       kyHoaDons?: string[];
       tuyenThuRacIds?: number[];
       serviceCatalogIds?: number[];
+      trangThaiThanhToan?: string;
       keyword?: string;
     }) => {
       setLoadingList(true);
@@ -235,6 +237,7 @@ export default function HomeRoute() {
               payload.serviceCatalogIds && payload.serviceCatalogIds.length > 0
                 ? payload.serviceCatalogIds.join(',')
                 : undefined,
+            trangThaiThanhToan: payload.trangThaiThanhToan || undefined,
             keyword: payload.keyword || undefined,
           },
         });
@@ -395,6 +398,7 @@ export default function HomeRoute() {
         kyHoaDons: ensuredKys,
         tuyenThuRacIds: nextRouteIds,
         serviceCatalogIds: nextServiceIds,
+        trangThaiThanhToan: selectedStatus,
         keyword: searchText.trim() || undefined,
       });
       await loadUnpaidCount({
@@ -432,6 +436,7 @@ export default function HomeRoute() {
       kyHoaDons: selectedKyHoaDons,
       tuyenThuRacIds: selectedRouteIds,
       serviceCatalogIds: selectedServiceIds,
+      trangThaiThanhToan: selectedStatus,
       keyword: searchText.trim() || undefined,
     });
   }, [
@@ -440,6 +445,7 @@ export default function HomeRoute() {
     selectedKyHoaDons,
     selectedRouteIds,
     selectedServiceIds,
+    selectedStatus,
     loadHouseholds,
   ]);
 
@@ -468,6 +474,7 @@ export default function HomeRoute() {
       kyHoaDons: selectedKyHoaDons,
       tuyenThuRacIds: selectedRouteIds,
       serviceCatalogIds: selectedServiceIds,
+      trangThaiThanhToan: selectedStatus,
       keyword: searchText.trim() || undefined,
     });
     await loadUnpaidCount({
@@ -672,7 +679,11 @@ export default function HomeRoute() {
     setDrawerOpen(false);
 
     if (menu.routePath) {
-      Alert.alert('Thông báo', `Menu: ${menu.label}\nRoute: ${menu.routePath}`);
+      if (menu.routePath === '/invoice-collections') {
+        router.push('/home' as never);
+      } else {
+        router.push(menu.routePath as never);
+      }
     }
   };
 
@@ -681,7 +692,11 @@ export default function HomeRoute() {
     setDrawerOpen(false);
 
     if (child.routePath) {
-      Alert.alert('Thông báo', `Menu: ${menu.label} > ${child.label}\nRoute: ${child.routePath}`);
+      if (child.routePath === '/invoice-collections') {
+        router.push('/home' as never);
+      } else {
+        router.push(child.routePath as never);
+      }
     }
   };
 
@@ -885,6 +900,42 @@ export default function HomeRoute() {
                       </Pressable>
                     );
                   })}
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.filterField}>
+              <Text style={styles.filterLabel}>Trạng thái thanh toán</Text>
+              <Pressable
+                onPress={() => setExpandedFilter((current) => (current === 'status' ? null : 'status'))}
+                style={({ pressed }) => [styles.selectShell, pressed && styles.buttonPressed]}>
+                <View style={styles.selectIconWrap}>
+                  <Text style={styles.selectIcon}>{expandedFilter === 'status' ? '▴' : '▾'}</Text>
+                </View>
+                <Text style={styles.selectValueText}>
+                  {selectedStatus === 'ALL' ? 'Tất cả' : selectedStatus === 'PAID' ? 'Đã thu' : 'Chưa thu'}
+                </Text>
+              </Pressable>
+              {expandedFilter === 'status' ? (
+                <View style={styles.multiSelectPanel}>
+                  <Pressable onPress={() => { setSelectedStatus('ALL'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
+                    <Text style={[styles.multiOptionText, selectedStatus === 'ALL' && styles.multiOptionTextActive]}>
+                      Tất cả
+                    </Text>
+                    {selectedStatus === 'ALL' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  <Pressable onPress={() => { setSelectedStatus('PAID'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
+                    <Text style={[styles.multiOptionText, selectedStatus === 'PAID' && styles.multiOptionTextActive]}>
+                      Đã thu
+                    </Text>
+                    {selectedStatus === 'PAID' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  <Pressable onPress={() => { setSelectedStatus('UNPAID'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
+                    <Text style={[styles.multiOptionText, selectedStatus === 'UNPAID' && styles.multiOptionTextActive]}>
+                      Chưa thu
+                    </Text>
+                    {selectedStatus === 'UNPAID' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
+                  </Pressable>
                 </View>
               ) : null}
             </View>

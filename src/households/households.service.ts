@@ -215,6 +215,27 @@ export class HouseholdsService {
       },
     });
 
+    if (updateHouseholdDto.serviceCatalogId !== undefined) {
+      const sc = updateHouseholdDto.serviceCatalogId
+        ? await this.prisma.serviceCatalog.findUnique({ where: { id: updateHouseholdDto.serviceCatalogId } })
+        : null;
+
+      const basePrice = sc ? Number(sc.giaDichVu) : 0;
+      const taxRate = sc ? Number(sc.thuePhanTram) : 0;
+      const calculatedTax = Number(((basePrice * taxRate) / 100).toFixed(2));
+
+      await this.prisma.invoice.updateMany({
+        where: {
+          householdId: id,
+          trangThaiThanhToan: { not: 'PAID' },
+        },
+        data: {
+          tongTien: basePrice,
+          thue: calculatedTax,
+        },
+      });
+    }
+
     return this.toResponse(updated);
   }
 

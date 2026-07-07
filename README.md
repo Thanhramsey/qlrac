@@ -123,3 +123,85 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+
+
+# 📝 CẨM NANG LỆNH DỰ ÁN QUẢN LÝ RÁC (2026)
+
+Tài liệu tổng hợp toàn bộ các lệnh vận hành hệ thống từ Backend, Frontend Web cho đến Mobile App (React Native/Expo).
+
+---
+
+## 1. 🖥️ QUẢN LÝ BACKEND & WEB FRONTEND
+*Chạy tại thư mục gốc của toàn dự án.*
+
+* **Chạy đồng thời cả Backend (NestJS) và Frontend Web (ReactJS):**
+    ```bash
+    npm run dev:all
+    ```
+
+> ⚠️ **Lưu ý cấu hình CORS ở Backend (`backend/src/main.ts`):**
+> Để Mobile App và Web ở cổng khác có thể gọi được API, file `main.ts` bắt buộc phải bật CORS và lắng nghe dải IP `0.0.0.0`:
+> ```typescript
+> app.enableCors({ origin: '*', credentials: true });
+> await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+> ```
+
+---
+
+## 2. 📱 PHÁT TRIỂN MOBILE APP (DEV & TEST)
+*Mở một Terminal riêng và di chuyển vào thư mục `mobile`:* `cd mobile`
+
+* **Cách 1: Test nhanh trên Trình duyệt Web (Mượt, dễ F12 debug):**
+    ```bash
+    npx expo start -c
+    ```
+    *Nhấn phím **`w`** trên bàn phím để tự động mở giao diện app dưới dạng trang web tại địa chỉ `http://localhost:8081`.*
+
+* **Cách 2: Test trên Điện thoại thật qua Expo Go (Khi máy tính cắm mạng dây / Wi-Fi lag):**
+    ```bash
+    npx expo start -c --tunnel
+    ```
+    *Bật mạng 3G/4G hoặc Wi-Fi trên điện thoại, mở ứng dụng **Expo Go** (Android) hoặc **Camera mặc định** (iPhone) để quét mã QR vừa sinh ra. Code sẽ được truyền qua đường hầm xuyên tường lửa.*
+
+> 🚨 **Cấu hình `BASE_URL` trong App Mobile:**
+> - Khi test trên Web (`localhost:8081`): Có thể dùng `http://localhost:3000`.
+> - Khi test trên file APK hoặc Expo Go: **Bắt buộc** phải đổi thành IPv4 của máy tính (Ví dụ: `http://10.54.24.127:3000`).
+
+---
+
+## 3. 📦 ĐÓNG GÓI XUẤT FILE APK (BUILD TRÊN MÂY EAS)
+*Thực hiện tại thư mục `mobile`. Phương pháp này đẩy code lên server Expo build hộ, không cần cài Android Studio.*
+
+* **Bước 1: Đăng nhập tài khoản Expo (Chỉ làm lần đầu tiên):**
+    ```bash
+    npx eas-cli login
+    ```
+* **Bước 2: Khởi tạo cấu hình liên kết dự án (Chỉ làm lần đầu tiên):**
+    ```bash
+    npx eas-cli build:configure
+    ```
+    *(Chọn nền tảng hệ điều hành là `Android` hoặc `All`).*
+
+* **Bước 3: Bắn lệnh Build ra file APK hoàn chỉnh:**
+    ```bash
+    npx eas-cli build --platform android --profile preview
+    ```
+
+> 🎁 **Nhận file APK:** Sau 3 - 5 phút build xong trên mây, Terminal sẽ trả về một **Mã QR** và một **Đường link**. Tiến hành quét mã để tải trực tiếp file `app-release.apk` về điện thoại để cài đặt và test tính năng Login thực tế.
+
+---
+
+## 🛠️ XỬ LÝ LỖI NHANH (TROUBLESHOOTING)
+
+* **Lỗi xung đột thư viện (`ERESOLVE`) khi cài package mới bên Mobile:**
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+* **Lỗi lệch pha phiên bản cấu hình giữa các gói Expo:**
+    ```bash
+    npx expo install --fix -- --legacy-peer-deps
+    ```
+* **Ép điện thoại tải lại giao diện (Reload) khi đang test app:**
+    * Nhấn phím **`r`** tại Terminal đang chạy server Expo.

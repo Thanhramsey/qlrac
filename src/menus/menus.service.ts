@@ -7,11 +7,31 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 
+export type MenuTreeNode = {
+  id: number;
+  menuKey: string;
+  tenMenu: string;
+  routePath: string | null;
+  parentId: number | null;
+  sortOrder: number;
+  viewMobile: boolean;
+  isActive: boolean;
+  children: MenuTreeNode[];
+};
+
+export type ClientMenuItem = {
+  key: string;
+  label: string;
+  routePath?: string;
+  viewMobile: boolean;
+  children: ClientMenuItem[];
+};
+
 @Injectable()
 export class MenusService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(): Promise<MenuTreeNode[]> {
     const menus = await this.prisma.menu.findMany({
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
@@ -19,7 +39,7 @@ export class MenusService {
     return this.buildTree(menus);
   }
 
-  async findTree() {
+  async findTree(): Promise<MenuTreeNode[]> {
     const menus = await this.prisma.menu.findMany({
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
@@ -51,6 +71,7 @@ export class MenusService {
         routePath: createMenuDto.routePath?.trim() || null,
         parentId: createMenuDto.parentId ?? null,
         sortOrder: createMenuDto.sortOrder ?? 0,
+        viewMobile: createMenuDto.viewMobile ?? false,
         isActive: createMenuDto.isActive ?? true,
       },
     });
@@ -79,6 +100,8 @@ export class MenusService {
             : (updateMenuDto.routePath?.trim() || null),
         parentId: updateMenuDto.parentId,
         sortOrder: updateMenuDto.sortOrder,
+        viewMobile:
+          updateMenuDto.viewMobile === undefined ? undefined : updateMenuDto.viewMobile,
         isActive: updateMenuDto.isActive,
       },
     });
@@ -148,7 +171,7 @@ export class MenusService {
     return this.getRoleMenuIds(roleCode);
   }
 
-  async getMenusByRole(roleCode: string) {
+  async getMenusByRole(roleCode: string): Promise<MenuTreeNode[]> {
     await this.ensureRoleExists(roleCode);
 
     const roleMenus = await this.prisma.roleMenuPermission.findMany({
@@ -161,6 +184,16 @@ export class MenusService {
 
     const menus = roleMenus.map((item) => item.menu);
     return this.buildTree(menus);
+  }
+
+  async getClientMenusByRole(roleCode: string): Promise<ClientMenuItem[]> {
+    const tree = (await this.getMenusByRole(roleCode)) as MenuTreeNode[];
+    return this.toClientMenuItems(tree);
+  }
+
+  async getMobileClientMenusByRole(roleCode: string): Promise<ClientMenuItem[]> {
+    const tree = (await this.getMenusByRole(roleCode)) as MenuTreeNode[];
+    return this.filterMobileMenus(this.toClientMenuItems(tree));
   }
 
   private async findOne(id: number) {
@@ -208,11 +241,12 @@ export class MenusService {
       routePath: string | null;
       parentId: number | null;
       sortOrder: number;
+      viewMobile: boolean;
       isActive: boolean;
     }>,
-  ) {
-    const byId = new Map<number, (typeof menus)[number] & { children: unknown[] }>();
-    const roots: Array<(typeof menus)[number] & { children: unknown[] }> = [];
+  ): MenuTreeNode[] {
+    const byId = new Map<number, MenuTreeNode>();
+    const roots: MenuTreeNode[] = [];
 
     for (const menu of menus) {
       byId.set(menu.id, { ...menu, children: [] });
@@ -227,5 +261,31 @@ export class MenusService {
     }
 
     return roots;
+  }
+
+  private toClientMenuItems(menus: MenuTreeNode[]): ClientMenuItem[] {
+    return menus.map((menu) => ({
+      key: menu.menuKey,
+      label: menu.tenMenu,
+      ...(menu.routePath ? { routePath: menu.routePath } : {}),
+      viewMobile: menu.viewMobile,
+      children: this.toClientMenuItems(menu.children),
+    }));
+  }
+
+  private filterMobileMenus(menus: ClientMenuItem[]): ClientMenuItem[] {
+    const filtered: ClientMenuItem[] = [];
+
+    for (const menu of menus) {
+      const children = this.filterMobileMenus(menu.children ?? []);
+      if (menu.viewMobile || children.length > 0) {
+        filtered.push({
+          ...menu,
+          children,
+        });
+      }
+    }
+
+    return filtered;
   }
 }

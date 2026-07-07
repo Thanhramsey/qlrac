@@ -4,5 +4,6 @@ export class CreateMenuDto {
   routePath?: string;
   parentId?: number | null;
   sortOrder?: number;
+  viewMobile?: boolean;
   isActive?: boolean;
 }

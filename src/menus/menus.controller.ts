@@ -8,11 +8,15 @@ import {
   Patch,
   Post,
   Put,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
 import { UpdateRoleMenusDto } from './dto/update-role-menus.dto';
@@ -22,6 +26,20 @@ import { MenusService } from './menus.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}
+
+  @Get('my')
+  async findMyMenus(@Req() req: Request) {
+    const user = (req as Request & { user?: JwtPayload }).user;
+    if (!user?.role) {
+      throw new UnauthorizedException('Token không hợp lệ');
+    }
+
+    const menus = await this.menusService.getMobileClientMenusByRole(user.role);
+    return {
+      roleCode: user.role,
+      menus,
+    };
+  }
 
   @Get()
   @Roles('ADMIN', 'ADMIN_LEVEL_2')

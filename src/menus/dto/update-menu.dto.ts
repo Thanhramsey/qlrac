@@ -4,5 +4,6 @@ export class UpdateMenuDto {
   routePath?: string | null;
   parentId?: number | null;
   sortOrder?: number;
+  viewMobile?: boolean;
   isActive?: boolean;
 }

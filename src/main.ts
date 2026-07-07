@@ -20,6 +20,14 @@ async function bootstrap() {
   app.use('/uploads', express.static(uploadsDir));
   app.use('/api/uploads', express.static(uploadsDir));
 
-  await app.listen(process.env.PORT ?? 3000);
+  // 🎯 BẬT CỜ NÀY ĐỂ FIX LỖI CORS: Cho phép tất cả các nguồn kết nối tới API
+  app.enableCors({
+    origin: '*', 
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
+  // Dòng cấu hình cổng hôm nọ tụi mình sửa
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 bootstrap();

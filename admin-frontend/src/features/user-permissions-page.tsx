@@ -32,6 +32,7 @@ interface MenuFormValues {
   routePath?: string
   parentId?: number | null
   sortOrder: number
+  viewMobile: boolean
   isActive: boolean
 }
 
@@ -137,6 +138,7 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
       routePath: '',
       parentId: null,
       sortOrder: 0,
+      viewMobile: false,
       isActive: true,
     })
     setMenuModalOpen(true)
@@ -150,6 +152,7 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
       routePath: menu.routePath ?? '',
       parentId: menu.parentId ?? null,
       sortOrder: menu.sortOrder,
+      viewMobile: menu.viewMobile,
       isActive: menu.isActive,
     })
     setMenuModalOpen(true)
@@ -342,6 +345,13 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
                       render: (value: string | null | undefined) => value || '-',
                     },
                     {
+                      title: 'Mobile',
+                      dataIndex: 'viewMobile',
+                      width: 120,
+                      render: (value: boolean) =>
+                        value ? <Tag color="green">Hiện mobile</Tag> : <Tag>Ẩn mobile</Tag>,
+                    },
+                    {
                       title: 'Trạng thái',
                       dataIndex: 'isActive',
                       width: 120,
@@ -387,7 +397,11 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
         cancelText="Hủy"
         confirmLoading={savingMenu}
       >
-        <Form<MenuFormValues> form={form} layout="vertical" initialValues={{ sortOrder: 0, isActive: true }}>
+        <Form<MenuFormValues>
+          form={form}
+          layout="vertical"
+          initialValues={{ sortOrder: 0, viewMobile: false, isActive: true }}
+        >
           <Form.Item
             label="Tên menu"
             name="tenMenu"
@@ -423,6 +437,10 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
 
           <Form.Item label="Thứ tự" name="sortOrder">
             <InputNumber style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item label="Hiển thị trên mobile" name="viewMobile" valuePropName="checked">
+            <Switch checkedChildren="Hiện" unCheckedChildren="Ẩn" />
           </Form.Item>
 
           <Form.Item label="Trạng thái" name="isActive" valuePropName="checked">

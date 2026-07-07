@@ -225,6 +225,7 @@ model Menu {
   routePath  String?  @map("route_path")
   parentId   Int?     @map("parent_id")
   sortOrder  Int      @default(0) @map("sort_order")
+  viewMobile Boolean  @default(false) @map("view_mobile")
   isActive   Boolean  @default(true) @map("is_active")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

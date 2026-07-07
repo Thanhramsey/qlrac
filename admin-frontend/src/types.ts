@@ -3,6 +3,7 @@ export type UserRole = string
 export interface AppMenuItem {
   key: string
   label: string
+  viewMobile?: boolean
   children?: AppMenuItem[]
 }
 
@@ -198,6 +199,7 @@ export interface MenuItemNode {
   routePath?: string | null
   parentId?: number | null
   sortOrder: number
+  viewMobile: boolean
   isActive: boolean
   children?: MenuItemNode[]
   parent?: {

@@ -49,17 +49,7 @@ export class AuthService {
     const { accessToken, refreshToken } = await this.generateTokenPair(payload);
     await this.saveRefreshTokenHash(user.id, refreshToken);
 
-    const menusFromRole = await this.menusService.getMenusByRole(user.roleCode);
-    const menus = menusFromRole.map((parent) => ({
-      key: parent.menuKey,
-      label: parent.tenMenu,
-      children: (parent.children as Array<{ menuKey: string; tenMenu: string }>).map(
-        (child) => ({
-          key: child.menuKey,
-          label: child.tenMenu,
-        }),
-      ),
-    }));
+    const menus = await this.menusService.getClientMenusByRole(user.roleCode);
 
     return {
       message: 'Đăng nhập thành công',

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "menus"
+ADD COLUMN IF NOT EXISTS "view_mobile" BOOLEAN NOT NULL DEFAULT false;

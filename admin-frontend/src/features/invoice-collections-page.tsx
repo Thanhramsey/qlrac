@@ -1403,6 +1403,16 @@ export function InvoiceCollectionsPage() {
                 value ? new Date(value).toLocaleString('vi-VN') : '---',
             },
             {
+              title: 'Người xuất',
+              render: (_, record) => record.publishedByName || '---',
+              width: 140,
+            },
+            {
+              title: 'Người thu',
+              render: (_, record) => record.collectedByName || '---',
+              width: 140,
+            },
+            {
               title: 'Tổng tiền',
               render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
               width: 150,
@@ -1642,6 +1652,26 @@ export function InvoiceCollectionsPage() {
                   title: 'Trạng thái',
                   render: (_, record) => getStatusTag(record.trangThaiThanhToan),
                   width: 120,
+                },
+                {
+                  title: 'Phát hành',
+                  render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
+                  width: 130,
+                },
+                {
+                  title: 'Kỳ gộp',
+                  render: (_, record) => record.mergedPeriodCodes || record.kyHoaDon,
+                  width: 180,
+                },
+                {
+                  title: 'Người xuất',
+                  render: (_, record) => record.publishedByName || '---',
+                  width: 140,
+                },
+                {
+                  title: 'Người thu',
+                  render: (_, record) => record.collectedByName || '---',
+                  width: 140,
                 },
                 {
                   title: 'Ngày thu',

@@ -3,6 +3,7 @@ import { InvoicePaymentStatus, Prisma } from '@prisma/client';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 type PublishSettings = {
   publishServiceUrl: string;
@@ -38,6 +39,270 @@ type PublishResult = {
 @Injectable()
 export class InvoicesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getMobileCollectionFilters(currentUser?: JwtPayload) {
+    const routeWhere: Prisma.RouteWhereInput =
+      currentUser?.role === 'STAFF'
+        ? {
+            staffId: currentUser.sub,
+          }
+        : {};
+
+    const [billingPeriods, routes, serviceCatalogs] = await this.prisma.$transaction([
+      this.prisma.billingPeriod.findMany({
+        orderBy: [{ ngayBatDau: 'desc' }, { id: 'desc' }],
+        take: 24,
+        select: {
+          id: true,
+          maKy: true,
+          tenKy: true,
+          ngayBatDau: true,
+          ngayKetThuc: true,
+          isClosed: true,
+        },
+      }),
+      this.prisma.route.findMany({
+        where: routeWhere,
+        orderBy: [{ tenTuyen: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          maTuyen: true,
+          tenTuyen: true,
+          staffId: true,
+          staff: {
+            select: {
+              id: true,
+              hoVaTen: true,
+              taiKhoan: true,
+            },
+          },
+        },
+      }),
+      this.prisma.serviceCatalog.findMany({
+        where: { isActive: true },
+        orderBy: [{ tenDichVu: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          maDichVu: true,
+          tenDichVu: true,
+          giaDichVu: true,
+          thuePhanTram: true,
+        },
+      }),
+    ]);
+
+    return {
+      billingPeriods,
+      routes,
+      serviceCatalogs: serviceCatalogs.map((item) => ({
+        ...item,
+        giaDichVu: Number(item.giaDichVu),
+        thuePhanTram: Number(item.thuePhanTram),
+      })),
+    };
+  }
+
+  async getMobileCollectionHouseholds(
+    currentUser: JwtPayload | undefined,
+    params: {
+      page?: number;
+      limit?: number;
+      kyHoaDons?: string[];
+      tuyenThuRacIds?: number[];
+      serviceCatalogIds?: number[];
+      keyword?: string;
+    },
+  ) {
+    const normalizedPage = Number.isFinite(params.page) && (params.page ?? 0) > 0 ? Number(params.page) : 1;
+    const normalizedLimit = Number.isFinite(params.limit)
+      ? Math.min(Math.max(Number(params.limit), 1), 100)
+      : 20;
+    const skip = (normalizedPage - 1) * normalizedLimit;
+
+    const kyHoaDons = [...new Set((params.kyHoaDons ?? []).map((item) => item.trim()).filter(Boolean))];
+    const keyword = params.keyword?.trim() || undefined;
+
+    const allowedRouteIds =
+      currentUser?.role === 'STAFF'
+        ? (
+            await this.prisma.route.findMany({
+              where: { staffId: currentUser.sub },
+              select: { id: true },
+            })
+          ).map((item) => item.id)
+        : null;
+
+    if (currentUser?.role === 'STAFF' && allowedRouteIds && allowedRouteIds.length === 0) {
+      return {
+        data: [],
+        pagination: {
+          page: normalizedPage,
+          limit: normalizedLimit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
+    const resolvedRouteIds = [...new Set((params.tuyenThuRacIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
+    const resolvedServiceIds = [...new Set((params.serviceCatalogIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
+
+    if (currentUser?.role === 'STAFF' && allowedRouteIds) {
+      if (resolvedRouteIds.some((routeId) => !allowedRouteIds.includes(routeId))) {
+        throw new BadRequestException('Tuyến thu gom không thuộc nhân viên hiện tại');
+      }
+    }
+
+    const routeIdFilter =
+      resolvedRouteIds.length > 0
+        ? resolvedRouteIds
+        : allowedRouteIds && allowedRouteIds.length > 0
+          ? allowedRouteIds
+          : undefined;
+
+    const where: Prisma.InvoiceWhereInput = {
+      ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
+      household: {
+        ...(keyword
+          ? {
+              OR: [
+                { tenChuHo: { contains: keyword, mode: 'insensitive' } },
+                { maHoDan: { contains: keyword, mode: 'insensitive' } },
+                { diaChi: { contains: keyword, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+        ...(routeIdFilter ? { tuyenThuRacId: { in: routeIdFilter } } : {}),
+        ...(resolvedServiceIds.length > 0 ? { serviceCatalogId: { in: resolvedServiceIds } } : {}),
+      },
+    };
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.invoice.findMany({
+        where,
+        skip,
+        take: normalizedLimit,
+        orderBy: [{ kyHoaDon: 'desc' }, { id: 'desc' }],
+        include: {
+          household: {
+            select: {
+              id: true,
+              maHoDan: true,
+              tenChuHo: true,
+              diaChi: true,
+              soDienThoai: true,
+              tuyenThuRac: {
+                select: {
+                  id: true,
+                  maTuyen: true,
+                  tenTuyen: true,
+                  staff: {
+                    select: {
+                      id: true,
+                      hoVaTen: true,
+                      taiKhoan: true,
+                    },
+                  },
+                },
+              },
+              serviceCatalog: {
+                select: {
+                  id: true,
+                  maDichVu: true,
+                  tenDichVu: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((item) => ({
+        id: item.id,
+        householdId: item.householdId,
+        kyHoaDon: item.kyHoaDon,
+        trangThaiThanhToan: item.trangThaiThanhToan,
+        tongTien: Number(item.tongTien),
+        thue: Number(item.thue),
+        tongCong: Number(item.tongTien) + Number(item.thue),
+        paymentDate: item.paymentDate,
+        paymentNote: item.paymentNote,
+        receiptImageUrl: item.receiptImageUrl,
+        invoicePublishStatus: item.invoicePublishStatus,
+        invoiceSerial: item.invoiceSerial,
+        invoiceFkey: item.invoiceFkey,
+        household: item.household,
+      })),
+      pagination: {
+        page: normalizedPage,
+        limit: normalizedLimit,
+        total,
+        totalPages: Math.ceil(total / normalizedLimit),
+      },
+    };
+  }
+
+  async getMobileUnpaidHouseholdCount(
+    currentUser: JwtPayload | undefined,
+    params: {
+      kyHoaDons?: string[];
+    },
+  ) {
+    let kyHoaDons = [...new Set((params.kyHoaDons ?? []).map((item) => item.trim()).filter(Boolean))];
+
+    if (kyHoaDons.length === 0) {
+      const latestPeriod = await this.prisma.billingPeriod.findFirst({
+        orderBy: [{ ngayBatDau: 'desc' }, { id: 'desc' }],
+        select: { maKy: true },
+      });
+
+      if (latestPeriod?.maKy) {
+        kyHoaDons = [latestPeriod.maKy];
+      }
+    }
+
+    if (kyHoaDons.length === 0) {
+      return {
+        kyHoaDons: [],
+        unpaidHouseholdCount: 0,
+      };
+    }
+
+    const allowedRouteIds =
+      currentUser?.role === 'STAFF'
+        ? (
+            await this.prisma.route.findMany({
+              where: { staffId: currentUser.sub },
+              select: { id: true },
+            })
+          ).map((item) => item.id)
+        : null;
+
+    if (currentUser?.role === 'STAFF' && allowedRouteIds && allowedRouteIds.length === 0) {
+      return {
+        kyHoaDons,
+        unpaidHouseholdCount: 0,
+      };
+    }
+
+    const unpaidHouseholdCount = await this.prisma.invoice.count({
+      where: {
+        kyHoaDon: { in: kyHoaDons },
+        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+        household: {
+          ...(allowedRouteIds ? { tuyenThuRacId: { in: allowedRouteIds } } : {}),
+        },
+      },
+    });
+
+    return {
+      kyHoaDons,
+      unpaidHouseholdCount,
+    };
+  }
 
   async findAll(
     page = 1,
@@ -270,7 +535,12 @@ export class InvoicesService {
     };
   }
 
-  async collectInvoices(invoiceIds: number[], paymentNote?: string, receiptImageUrl?: string) {
+  async collectInvoices(
+    invoiceIds: number[],
+    paymentNote?: string,
+    receiptImageUrl?: string,
+    currentUser?: JwtPayload,
+  ) {
     const normalizedIds = [...new Set((invoiceIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
     if (normalizedIds.length === 0) {
       throw new BadRequestException('Danh sách hóa đơn thu tiền không hợp lệ');
@@ -296,6 +566,8 @@ export class InvoicesService {
         paymentDate: now,
         paymentNote: paymentNote?.trim() || null,
         receiptImageUrl: receiptImageUrl ?? null,
+        collectedById: currentUser?.sub,
+        collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
       },
     });
 
@@ -1091,7 +1363,7 @@ export class InvoicesService {
     });
   }
 
-  async publishInvoices(invoiceIds: number[]) {
+  async publishInvoices(invoiceIds: number[], currentUser?: JwtPayload) {
     const normalizedIds = [...new Set((invoiceIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
     if (normalizedIds.length === 0) {
       throw new BadRequestException('Danh sách hóa đơn phát hành không hợp lệ');
@@ -1118,6 +1390,13 @@ export class InvoicesService {
       throw new BadRequestException('Có hóa đơn không tồn tại trong danh sách phát hành');
     }
 
+    const groupedByHousehold = new Map<number, typeof invoices>();
+    for (const invoice of invoices) {
+      const bucket = groupedByHousehold.get(invoice.householdId) ?? [];
+      bucket.push(invoice);
+      groupedByHousehold.set(invoice.householdId, bucket);
+    }
+
     const results: Array<{
       invoiceId: number;
       success: boolean;
@@ -1127,35 +1406,42 @@ export class InvoicesService {
       invoiceIssuedAt?: string | null;
     }> = [];
 
-    for (const invoice of invoices) {
-      const isAlreadyPublished =
-        invoice.invoicePublishStatus === 'SUCCESS' ||
-        !!invoice.invoiceFkey ||
-        !!invoice.invoiceSerial;
+    for (const householdInvoices of groupedByHousehold.values()) {
+      const sortedInvoices = [...householdInvoices].sort((a, b) => a.kyHoaDon.localeCompare(b.kyHoaDon));
+      const alreadyPublished = sortedInvoices.filter(
+        (invoice) =>
+          invoice.invoicePublishStatus === 'SUCCESS' ||
+          !!invoice.invoiceFkey ||
+          !!invoice.invoiceSerial,
+      );
 
-      if (isAlreadyPublished) {
-        // Nếu đã phát hành trước đó nhưng trạng thái thu tiền chưa cập nhật, tự đồng bộ lại nghiệp vụ.
-        if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PAID) {
-          await this.prisma.invoice.update({
-            where: { id: invoice.id },
-            data: {
-              trangThaiThanhToan: InvoicePaymentStatus.PAID,
-              paymentDate: invoice.paymentDate ?? new Date(),
-            },
+      if (alreadyPublished.length > 0) {
+        for (const invoice of alreadyPublished) {
+          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PAID) {
+            await this.prisma.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                trangThaiThanhToan: InvoicePaymentStatus.PAID,
+                paymentDate: invoice.paymentDate ?? new Date(),
+              },
+            });
+          }
+
+          results.push({
+            invoiceId: invoice.id,
+            success: false,
+            message: 'Hóa đơn đã phát hành, không thể xuất lại. Vui lòng dùng chức năng Thay thế hóa đơn.',
           });
         }
+      }
 
-        const message = 'Hóa đơn đã phát hành, không thể xuất lại. Vui lòng dùng chức năng Thay thế hóa đơn.';
-        results.push({
-          invoiceId: invoice.id,
-          success: false,
-          message,
-        });
+      const targetInvoices = sortedInvoices.filter((invoice) => !alreadyPublished.some((ap) => ap.id === invoice.id));
+      if (targetInvoices.length === 0) {
         continue;
       }
 
       try {
-        const xmlInvData = this.buildXmlInvData(invoice, settings);
+        const xmlInvData = this.buildMergedXmlInvData(targetInvoices, settings);
         const credentialCandidates: PublishCredential[] = [
           {
             account: settings.wsUserId,
@@ -1195,46 +1481,64 @@ export class InvoicesService {
 
         if (!publishResult.success) {
           const failMessage = publishResult.message || 'Phát hành thất bại';
+          for (const invoice of targetInvoices) {
+            await this.markPublishFailed(invoice.id, failMessage);
+            results.push({
+              invoiceId: invoice.id,
+              success: false,
+              message: failMessage,
+            });
+          }
+          continue;
+        }
+
+        const issuedAt = new Date();
+        const mergedPeriods = targetInvoices.map((item) => item.kyHoaDon).join(', ');
+
+        await this.prisma.invoice.updateMany({
+          where: { id: { in: targetInvoices.map((item) => item.id) } },
+          data: {
+            invoiceSerial: publishResult.serial,
+            invoiceFkey: publishResult.fkey,
+            invoiceIssuedAt: issuedAt,
+            invoicePublishStatus: 'SUCCESS',
+            invoicePublishMessage:
+              (publishResult.message || 'Phát hành thành công') +
+              (targetInvoices.length > 1 ? ` (Gộp kỳ: ${mergedPeriods})` : ''),
+            mergedPeriodCodes: targetInvoices.length > 1 ? mergedPeriods : targetInvoices[0]?.kyHoaDon ?? null,
+            publishedById: currentUser?.sub,
+            publishedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
+            // Nghiệp vụ hiện tại: xuất hóa đơn xong mặc định xác nhận đã thu.
+            trangThaiThanhToan: InvoicePaymentStatus.PAID,
+            paymentDate: issuedAt,
+            collectedById: currentUser?.sub,
+            collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
+          },
+        });
+
+        for (const invoice of targetInvoices) {
+          results.push({
+            invoiceId: invoice.id,
+            success: true,
+            message:
+              targetInvoices.length > 1
+                ? `Đã phát hành gộp ${targetInvoices.length} kỳ thành 1 hóa đơn (${mergedPeriods})`
+                : publishResult.message || 'Phát hành thành công',
+            invoiceSerial: publishResult.serial,
+            invoiceFkey: publishResult.fkey,
+            invoiceIssuedAt: issuedAt.toISOString(),
+          });
+        }
+      } catch (error) {
+        const failMessage = error instanceof Error ? error.message : 'Không thể phát hành hóa đơn';
+        for (const invoice of targetInvoices) {
           await this.markPublishFailed(invoice.id, failMessage);
           results.push({
             invoiceId: invoice.id,
             success: false,
             message: failMessage,
           });
-          continue;
         }
-
-        const issuedAt = new Date();
-        await this.prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            invoiceSerial: publishResult.serial,
-            invoiceFkey: publishResult.fkey,
-            invoiceIssuedAt: issuedAt,
-            invoicePublishStatus: 'SUCCESS',
-            invoicePublishMessage: publishResult.message || 'Phát hành thành công',
-            // Nghiệp vụ: đã xuất hóa đơn thì mặc định xem như đã thu tiền.
-            trangThaiThanhToan: InvoicePaymentStatus.PAID,
-            paymentDate: invoice.paymentDate ?? issuedAt,
-          },
-        });
-
-        results.push({
-          invoiceId: invoice.id,
-          success: true,
-          message: publishResult.message || 'Phát hành thành công',
-          invoiceSerial: publishResult.serial,
-          invoiceFkey: publishResult.fkey,
-          invoiceIssuedAt: issuedAt.toISOString(),
-        });
-      } catch (error) {
-        const failMessage = error instanceof Error ? error.message : 'Không thể phát hành hóa đơn';
-        await this.markPublishFailed(invoice.id, failMessage);
-        results.push({
-          invoiceId: invoice.id,
-          success: false,
-          message: failMessage,
-        });
       }
     }
 
@@ -1872,8 +2176,8 @@ export class InvoicesService {
     ];
   }
 
-  private buildXmlInvData(
-    invoice: {
+  private buildMergedXmlInvData(
+    invoices: Array<{
       id: number;
       kyHoaDon: string;
       tongTien: Prisma.Decimal;
@@ -1884,15 +2188,23 @@ export class InvoicesService {
         diaChi: string;
         soDienThoai: string;
       };
-    },
+    }>,
     settings: PublishSettings,
   ) {
-    const total = Number(invoice.tongTien) + Number(invoice.thue);
+    const firstInvoice = invoices[0];
+    const sortedPeriods = [...new Set(invoices.map((item) => item.kyHoaDon))].sort((a, b) => a.localeCompare(b));
+    const mergedPeriodText = sortedPeriods.join(', ');
+    const tongTien = invoices.reduce((sum, item) => sum + Number(item.tongTien), 0);
+    const tongThue = invoices.reduce((sum, item) => sum + Number(item.thue), 0);
+    const total = tongTien + tongThue;
     const issueDate = this.formatDate(new Date());
-    const productName = `Dịch vụ thu gom rác kỳ ${invoice.kyHoaDon}`;
-    const fkey = this.buildInvoiceXmlKey(invoice.kyHoaDon, invoice.id);
+    const productName =
+      invoices.length > 1
+        ? `Dịch vụ thu gom rác các kỳ ${mergedPeriodText}`
+        : `Dịch vụ thu gom rác kỳ ${firstInvoice.kyHoaDon}`;
+    const fkey = this.buildInvoiceXmlKey(sortedPeriods.join('-'), firstInvoice.id);
 
-    return `<Invoices><Inv><key>${this.escapeXml(fkey)}</key><Invoice><CusCode>${this.escapeXml(invoice.household.maHoDan)}</CusCode><CusName>${this.escapeXml(invoice.household.tenChuHo)}</CusName><CusAddress>${this.escapeXml(invoice.household.diaChi || '')}</CusAddress><CusPhone>${this.escapeXml(invoice.household.soDienThoai || '')}</CusPhone><CusTaxCode></CusTaxCode><Buyer>${this.escapeXml(invoice.household.tenChuHo)}</Buyer><ArisingDate>${issueDate}</ArisingDate><PaymentMethod>TM/CK</PaymentMethod><Products><Product><ProdName>${this.escapeXml(productName)}</ProdName><ProdUnit>Tháng</ProdUnit><ProdQuantity>1</ProdQuantity><ProdPrice>${Number(invoice.tongTien).toFixed(0)}</ProdPrice><Amount>${Number(invoice.tongTien).toFixed(0)}</Amount><VATRate>${this.resolveVatRate(invoice)}</VATRate><VATAmount>${Number(invoice.thue).toFixed(0)}</VATAmount></Product></Products><Total>${Number(invoice.tongTien).toFixed(0)}</Total><VATAmount>${Number(invoice.thue).toFixed(0)}</VATAmount><Amount>${total.toFixed(0)}</Amount><AmountInWords>${this.escapeXml(this.toAmountInWords(total))}</AmountInWords><ComName>${this.escapeXml(settings.tenDonVi)}</ComName><ComTaxCode>${this.escapeXml(settings.maSoThue)}</ComTaxCode><ComAddress>${this.escapeXml(settings.diaChi)}</ComAddress><ComPhone>${this.escapeXml(settings.soDienThoai)}</ComPhone></Invoice></Inv></Invoices>`;
+    return `<Invoices><Inv><key>${this.escapeXml(fkey)}</key><Invoice><CusCode>${this.escapeXml(firstInvoice.household.maHoDan)}</CusCode><CusName>${this.escapeXml(firstInvoice.household.tenChuHo)}</CusName><CusAddress>${this.escapeXml(firstInvoice.household.diaChi || '')}</CusAddress><CusPhone>${this.escapeXml(firstInvoice.household.soDienThoai || '')}</CusPhone><CusTaxCode></CusTaxCode><Buyer>${this.escapeXml(firstInvoice.household.tenChuHo)}</Buyer><ArisingDate>${issueDate}</ArisingDate><PaymentMethod>TM/CK</PaymentMethod><Products><Product><ProdName>${this.escapeXml(productName)}</ProdName><ProdUnit>Gói</ProdUnit><ProdQuantity>1</ProdQuantity><ProdPrice>${tongTien.toFixed(0)}</ProdPrice><Amount>${tongTien.toFixed(0)}</Amount><VATRate>${this.resolveVatRate(firstInvoice)}</VATRate><VATAmount>${tongThue.toFixed(0)}</VATAmount></Product></Products><Total>${tongTien.toFixed(0)}</Total><VATAmount>${tongThue.toFixed(0)}</VATAmount><Amount>${total.toFixed(0)}</Amount><AmountInWords>${this.escapeXml(this.toAmountInWords(total))}</AmountInWords><ComName>${this.escapeXml(settings.tenDonVi)}</ComName><ComTaxCode>${this.escapeXml(settings.maSoThue)}</ComTaxCode><ComAddress>${this.escapeXml(settings.diaChi)}</ComAddress><ComPhone>${this.escapeXml(settings.soDienThoai)}</ComPhone></Invoice></Inv></Invoices>`;
   }
 
   private buildReplaceXmlInvData(invoice: {

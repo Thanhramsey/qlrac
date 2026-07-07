@@ -251,6 +251,11 @@ export interface InvoiceItem {
   invoiceIssuedAt?: string | null
   invoicePublishStatus?: string | null
   invoicePublishMessage?: string | null
+  publishedById?: number | null
+  publishedByName?: string | null
+  collectedById?: number | null
+  collectedByName?: string | null
+  mergedPeriodCodes?: string | null
   createdAt: string
   updatedAt: string
   household?: {

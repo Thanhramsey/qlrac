@@ -10,10 +10,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
@@ -24,12 +26,71 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @Controller('invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
+
+  @Get('mobile/filters')
+  getMobileFilters(@Req() req: Request & { user?: JwtPayload }) {
+    return this.invoicesService.getMobileCollectionFilters(req.user);
+  }
+
+  @Get('mobile/households')
+  getMobileHouseholds(
+    @Req() req: Request & { user?: JwtPayload },
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('kyHoaDons') kyHoaDons?: string,
+    @Query('kyHoaDon') kyHoaDon?: string,
+    @Query('tuyenThuRacIds') tuyenThuRacIds?: string,
+    @Query('tuyenThuRacId') tuyenThuRacId?: string,
+    @Query('serviceCatalogIds') serviceCatalogIds?: string,
+    @Query('serviceCatalogId') serviceCatalogId?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    const parseNumberList = (raw?: string) =>
+      (raw ?? '')
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((item) => Number.isInteger(item) && item > 0);
+
+    const parseStringList = (raw?: string) =>
+      (raw ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+    const kyHoaDonList = parseStringList(kyHoaDons || kyHoaDon);
+    const routeIdList = parseNumberList(tuyenThuRacIds || tuyenThuRacId);
+    const serviceIdList = parseNumberList(serviceCatalogIds || serviceCatalogId);
+
+    return this.invoicesService.getMobileCollectionHouseholds(req.user, {
+      page: Number(page),
+      limit: Number(limit),
+      kyHoaDons: kyHoaDonList,
+      tuyenThuRacIds: routeIdList,
+      serviceCatalogIds: serviceIdList,
+      keyword,
+    });
+  }
+
+  @Get('mobile/unpaid-count')
+  getMobileUnpaidCount(
+    @Req() req: Request & { user?: JwtPayload },
+    @Query('kyHoaDons') kyHoaDons?: string,
+    @Query('kyHoaDon') kyHoaDon?: string,
+  ) {
+    const kyHoaDonList = (kyHoaDons || kyHoaDon || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+
+    return this.invoicesService.getMobileUnpaidHouseholdCount(req.user, { kyHoaDons: kyHoaDonList });
+  }
 
   @Get()
   findAll(
@@ -150,9 +211,12 @@ export class InvoicesController {
   }
 
   @Post('publish')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   @HttpCode(HttpStatus.OK)
-  publishInvoices(@Body('invoiceIds') invoiceIdsRaw?: number[] | string) {
+  publishInvoices(
+    @Req() req: Request & { user?: JwtPayload },
+    @Body('invoiceIds') invoiceIdsRaw?: number[] | string,
+  ) {
     let parsedIds: number[] = [];
 
     if (Array.isArray(invoiceIdsRaw)) {
@@ -175,7 +239,7 @@ export class InvoicesController {
       }
     }
 
-    return this.invoicesService.publishInvoices(parsedIds);
+    return this.invoicesService.publishInvoices(parsedIds, req.user);
   }
 
   @Post('sync-metadata')
@@ -235,6 +299,7 @@ export class InvoicesController {
   )
   @HttpCode(HttpStatus.OK)
   collectInvoices(
+    @Req() req: Request & { user?: JwtPayload },
     @Body('invoiceIds') invoiceIdsRaw?: string | number[],
     @Body('paymentNote') paymentNote?: string,
     @UploadedFile() receiptImage?: Express.Multer.File,
@@ -262,7 +327,7 @@ export class InvoicesController {
     }
 
     const receiptImageUrl = receiptImage ? `/uploads/receipts/${receiptImage.filename}` : undefined;
-    return this.invoicesService.collectInvoices(parsedIds, paymentNote, receiptImageUrl);
+    return this.invoicesService.collectInvoices(parsedIds, paymentNote, receiptImageUrl, req.user);
   }
 
   @Get(':id')

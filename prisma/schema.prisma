@@ -152,6 +152,11 @@ model Invoice {
   invoiceIssuedAt    DateTime?            @map("invoice_issued_at")
   invoicePublishStatus String?            @map("invoice_publish_status")
   invoicePublishMessage String?           @map("invoice_publish_message")
+  publishedById      Int?                 @map("published_by_id")
+  publishedByName    String?              @map("published_by_name")
+  collectedById      Int?                 @map("collected_by_id")
+  collectedByName    String?              @map("collected_by_name")
+  mergedPeriodCodes  String?              @map("merged_period_codes")
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
 
@@ -159,6 +164,8 @@ model Invoice {
 
   @@index([householdId])
   @@index([kyHoaDon, trangThaiThanhToan])
+  @@index([publishedById])
+  @@index([collectedById])
   @@map("invoices")
 }
 

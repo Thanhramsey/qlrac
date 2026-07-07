@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,6 +25,7 @@ export default function LoginRoute() {
   const [matKhau, setMatKhau] = useState('');
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
+  const passwordInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -79,44 +83,62 @@ export default function LoginRoute() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.kicker}>App Thu Rác Mobile</Text>
-        <Text style={styles.title}>Đăng nhập hệ thống</Text>
-        <Text style={styles.baseUrl}>API: {API_BASE_URL}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardWrap}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.heroCard}>
+            <Text style={styles.kicker}>Ứng dụng thu gom rác</Text>
+            <Text style={styles.title}>Đăng nhập hệ thống</Text>
+            <Text style={styles.subtitle}>Quản lý thu tiền và hóa đơn điện tử</Text>
+          </View>
 
-        <View style={styles.fieldWrap}>
-          <Text style={styles.label}>Tài khoản hoặc CCCD/CMND</Text>
-          <TextInput
-            value={taiKhoanOrSoGiayTo}
-            onChangeText={setTaiKhoanOrSoGiayTo}
-            placeholder="admin01 hoặc 0792xxxxxx"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.input}
-          />
-        </View>
+          <View style={styles.card}>
+            <Text style={styles.baseUrl}>API: {API_BASE_URL}</Text>
 
-        <View style={styles.fieldWrap}>
-          <Text style={styles.label}>Mật khẩu</Text>
-          <TextInput
-            value={matKhau}
-            onChangeText={setMatKhau}
-            placeholder="Nhập mật khẩu"
-            secureTextEntry
-            style={styles.input}
-          />
-        </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.label}>Tài khoản hoặc CCCD/CMND</Text>
+              <TextInput
+                value={taiKhoanOrSoGiayTo}
+                onChangeText={setTaiKhoanOrSoGiayTo}
+                placeholder="admin01 hoặc 0792xxxxxx"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                style={styles.input}
+              />
+            </View>
 
-        <Pressable
-          onPress={handleLogin}
-          disabled={!canSubmit}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            (!canSubmit || pressed) && styles.buttonPressed,
-          ]}>
-          <Text style={styles.primaryButtonText}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
-        </Pressable>
-      </View>
+            <View style={styles.fieldWrap}>
+              <Text style={styles.label}>Mật khẩu</Text>
+              <TextInput
+                ref={passwordInputRef}
+                value={matKhau}
+                onChangeText={setMatKhau}
+                placeholder="Nhập mật khẩu"
+                secureTextEntry
+                returnKeyType="go"
+                onSubmitEditing={() => {
+                  void handleLogin();
+                }}
+                style={styles.input}
+              />
+            </View>
+
+            <Pressable
+              onPress={handleLogin}
+              disabled={!canSubmit}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                (!canSubmit || pressed) && styles.buttonPressed,
+              ]}>
+              <Text style={styles.primaryButtonText}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -124,34 +146,54 @@ export default function LoginRoute() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#eef6f2',
+  },
+  keyboardWrap: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    gap: 12,
   },
   containerCenter: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  heroCard: {
+    borderRadius: 18,
+    padding: 18,
+    backgroundColor: '#0f6f57',
+    borderWidth: 1,
+    borderColor: '#0a5b46',
+    gap: 6,
+  },
   card: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#d5e6e0',
     gap: 12,
   },
-  kicker: { color: '#0d8a6a', fontWeight: '700' },
+  kicker: { color: '#d3f2e6', fontWeight: '700' },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f2d25',
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  subtitle: {
+    color: '#d7efe7',
+    fontSize: 13,
   },
   baseUrl: {
     color: '#4c776b',
     fontSize: 12,
+    marginBottom: 2,
   },
   fieldWrap: {
     gap: 6,
@@ -164,15 +206,15 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#b7d3c9',
-    borderRadius: 10,
-    height: 46,
+    borderRadius: 12,
+    height: 50,
     paddingHorizontal: 12,
     color: '#11342b',
     backgroundColor: '#f8fcfa',
   },
   primaryButton: {
-    height: 46,
-    borderRadius: 10,
+    height: 50,
+    borderRadius: 12,
     backgroundColor: '#0d8a6a',
     alignItems: 'center',
     justifyContent: 'center',

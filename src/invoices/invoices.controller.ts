@@ -281,7 +281,7 @@ export class InvoicesController {
   }
 
   @Post('sync-metadata')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   @HttpCode(HttpStatus.OK)
   syncPublishMetadata(@Body('invoiceIds') invoiceIdsRaw?: number[] | string) {
     let parsedIds: number[] = [];

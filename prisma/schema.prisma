@@ -23,6 +23,7 @@ enum InvoicePaymentStatus {
   UNPAID
   PAID
   OVERDUE
+  PUBLISHED
 
   @@map("invoice_payment_status")
 }

@@ -29,6 +29,7 @@ export class DashboardService {
       totalUsers,
       totalInvoices,
       paidInvoices,
+      publishedInvoices,
       unpaidInvoices,
       overdueInvoices,
       totalRevenueAgg,
@@ -48,6 +49,12 @@ export class DashboardService {
       this.prisma.invoice.count({
         where: {
           ...invoiceWhere,
+          trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
+        },
+      }),
+      this.prisma.invoice.count({
+        where: {
+          ...invoiceWhere,
           trangThaiThanhToan: InvoicePaymentStatus.UNPAID,
         },
       }),
@@ -61,7 +68,7 @@ export class DashboardService {
       this.prisma.invoice.aggregate({
         where: {
           ...invoiceWhere,
-          trangThaiThanhToan: InvoicePaymentStatus.PAID,
+          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
         },
         _sum: { tongTien: true, thue: true },
       }),
@@ -146,7 +153,7 @@ export class DashboardService {
       bucket.totalInvoices += count;
       bucket.totalRevenue += amount;
 
-      if (row.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+      if (row.trangThaiThanhToan === InvoicePaymentStatus.PAID || row.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED) {
         bucket.paidInvoices += count;
         bucket.paidRevenue += amount;
       }
@@ -190,7 +197,7 @@ export class DashboardService {
         totalRoutes,
         totalUsers,
         totalInvoices,
-        paidInvoices,
+        paidInvoices: paidInvoices + publishedInvoices,
         unpaidInvoices,
         overdueInvoices,
         totalRevenue: Number(totalRevenueAgg._sum.tongTien ?? 0) + Number(totalRevenueAgg._sum.thue ?? 0),
@@ -199,7 +206,8 @@ export class DashboardService {
           Number(needToCollectAgg._sum.tongTien ?? 0) + Number(needToCollectAgg._sum.thue ?? 0),
       },
       invoiceStatusChart: [
-        { key: 'PAID', label: 'Đã thanh toán', count: paidInvoices },
+        { key: 'PAID', label: 'Đã thu (chưa xuất HĐ)', count: paidInvoices },
+        { key: 'PUBLISHED', label: 'Đã xuất hóa đơn', count: publishedInvoices },
         { key: 'UNPAID', label: 'Chưa thanh toán', count: unpaidInvoices },
         { key: 'OVERDUE', label: 'Quá hạn', count: overdueInvoices },
       ],

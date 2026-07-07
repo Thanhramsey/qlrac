@@ -69,7 +69,8 @@ const DEFAULT_UNIT_INFO: UnitInfo = {
 
 const PAYMENT_STATUS_OPTIONS: Array<{ label: string; value: InvoicePaymentStatus }> = [
   { label: 'Chưa thu', value: 'UNPAID' },
-  { label: 'Đã thu', value: 'PAID' },
+  { label: 'Đã thu (chưa xuất hóa đơn)', value: 'PAID' },
+  { label: 'Đã xuất hóa đơn', value: 'PUBLISHED' },
   { label: 'Quá hạn', value: 'OVERDUE' },
 ]
 
@@ -250,13 +251,14 @@ function toVietnameseMoneyText(value: number) {
 
 function getStatusTag(status: InvoicePaymentStatus) {
   if (status === 'PAID') {
-    return <Tag color="success">Đã thu</Tag>
+    return <Tag color="success">Đã thu (chưa xuất HĐ)</Tag>
   }
-
+  if (status === 'PUBLISHED') {
+    return <Tag color="processing">Đã xuất hóa đơn</Tag>
+  }
   if (status === 'OVERDUE') {
     return <Tag color="error">Quá hạn</Tag>
   }
-
   return <Tag color="warning">Chưa thu</Tag>
 }
 
@@ -508,7 +510,7 @@ function buildReceiptMarkup(item: InvoiceItem, unitInfo: UnitInfo) {
   const issueDate = new Date(item.createdAt || Date.now()).toLocaleString('vi-VN')
   const receiptCode = `PT${String(item.id).padStart(6, '0')}`
   const amountText = toVietnameseMoneyText(total)
-  const statusLabel = item.trangThaiThanhToan === 'PAID' ? 'ĐÃ THU' : item.trangThaiThanhToan === 'OVERDUE' ? 'QUÁ HẠN' : 'CHƯA THU'
+  const statusLabel = item.trangThaiThanhToan === 'PUBLISHED' ? 'ĐÃ XUẤT HĐ' : item.trangThaiThanhToan === 'PAID' ? 'ĐÃ THU' : item.trangThaiThanhToan === 'OVERDUE' ? 'QUÁ HẠN' : 'CHƯA THU'
   const receiptImage = item.receiptImageUrl
     ? `<div class="receipt-img-box"><img src="${item.receiptImageUrl}" alt="Ảnh biên nhận" /></div>`
     : ''
@@ -817,7 +819,7 @@ export function InvoiceCollectionsPage() {
 
     const unpaidIds = ids.filter((id) => {
       const invoice = invoices.find((item) => item.id === id)
-      return invoice?.trangThaiThanhToan !== 'PAID'
+      return invoice?.trangThaiThanhToan !== 'PAID' && invoice?.trangThaiThanhToan !== 'PUBLISHED'
     })
 
     if (unpaidIds.length === 0) {
@@ -1452,7 +1454,7 @@ export function InvoiceCollectionsPage() {
                     className="invoice-action-btn collect"
                     type="primary"
                     size="small"
-                    disabled={record.trangThaiThanhToan === 'PAID'}
+                    disabled={record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED'}
                     onClick={() => openCollectModal([record.id])}
                   >
                     Thu tiền
@@ -1638,7 +1640,7 @@ export function InvoiceCollectionsPage() {
                 selectedRowKeys: historySelectedUnpaidIds,
                 onChange: (keys) => setHistorySelectedUnpaidIds(keys as number[]),
                 getCheckboxProps: (record) => ({
-                  disabled: record.trangThaiThanhToan === 'PAID',
+                  disabled: record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED',
                 }),
               }}
               columns={[

@@ -15,7 +15,7 @@ import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
 
-type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE';
+type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
 interface HouseholdHistoryInvoice {
   id: number;
@@ -55,6 +55,10 @@ function formatCurrency(value: number) {
 }
 
 function getStatusLabel(status: PaymentStatus) {
+  if (status === 'PUBLISHED') {
+    return 'Đã xuất HĐ';
+  }
+
   if (status === 'PAID') {
     return 'Đã thu';
   }
@@ -265,7 +269,7 @@ export default function HouseholdHistoryRoute() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
       <View style={styles.headerCard}>
         <Text style={styles.kicker}>Lịch sử hộ dân</Text>
         <Text style={styles.title}>{data.household.tenChuHo}</Text>
@@ -338,9 +342,11 @@ export default function HouseholdHistoryRoute() {
                       styles.statusChip,
                       invoice.trangThaiThanhToan === 'PAID'
                         ? styles.statusChipPaid
-                        : invoice.trangThaiThanhToan === 'OVERDUE'
-                          ? styles.statusChipOverdue
-                          : styles.statusChipUnpaid,
+                        : invoice.trangThaiThanhToan === 'PUBLISHED'
+                          ? styles.statusChipPublished
+                          : invoice.trangThaiThanhToan === 'OVERDUE'
+                            ? styles.statusChipOverdue
+                            : styles.statusChipUnpaid,
                     ]}>
                     <Text style={styles.statusChipText}>Trạng thái: {getStatusLabel(invoice.trangThaiThanhToan)}</Text>
                   </View>
@@ -367,6 +373,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f4f8f6',
   },
   container: {
     padding: 16,
@@ -532,6 +542,9 @@ const styles = StyleSheet.create({
   },
   statusChipPaid: {
     backgroundColor: '#e5f7eb',
+  },
+  statusChipPublished: {
+    backgroundColor: '#e1f5fe',
   },
   statusChipUnpaid: {
     backgroundColor: '#fff6d8',

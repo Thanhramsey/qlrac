@@ -12,27 +12,29 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-function statusColor(status: 'PAID' | 'UNPAID' | 'OVERDUE') {
+function statusColor(status: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED') {
+  if (status === 'PUBLISHED') {
+    return 'processing'
+  }
   if (status === 'PAID') {
     return 'success'
   }
-
   if (status === 'OVERDUE') {
     return 'error'
   }
-
   return 'warning'
 }
 
-function statusLabel(status: 'PAID' | 'UNPAID' | 'OVERDUE') {
-  if (status === 'PAID') {
-    return 'Đã thanh toán'
+function statusLabel(status: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED') {
+  if (status === 'PUBLISHED') {
+    return 'Đã xuất hóa đơn'
   }
-
+  if (status === 'PAID') {
+    return 'Đã thu (chưa xuất HĐ)'
+  }
   if (status === 'OVERDUE') {
     return 'Quá hạn'
   }
-
   return 'Chưa thanh toán'
 }
 

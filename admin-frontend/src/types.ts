@@ -233,7 +233,7 @@ export interface BillingPeriodConfig {
   updatedAt: string
 }
 
-export type InvoicePaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE'
+export type InvoicePaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED'
 
 export interface InvoiceItem {
   id: number
@@ -397,7 +397,7 @@ export interface DashboardOverviewResponse {
     totalNeedToCollect: number
   }
   invoiceStatusChart: Array<{
-    key: 'PAID' | 'UNPAID' | 'OVERDUE'
+    key: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED'
     label: string
     count: number
   }>
@@ -418,7 +418,7 @@ export interface DashboardOverviewResponse {
     tongTien: number
     thue: number
     tongThanhToan: number
-    trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE'
+    trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED'
     createdAt: string
     household: {
       maHoDan: string

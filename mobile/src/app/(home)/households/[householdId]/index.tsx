@@ -19,7 +19,7 @@ import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
 
-type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE';
+type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
 interface HouseholdHistoryInvoice {
   id: number;
@@ -81,6 +81,10 @@ function formatCurrency(value: number) {
 }
 
 function getStatusLabel(status: PaymentStatus) {
+  if (status === 'PUBLISHED') {
+    return 'Đã xuất HĐ';
+  }
+
   if (status === 'PAID') {
     return 'Đã thu';
   }
@@ -204,7 +208,7 @@ export default function HouseholdDetailRoute() {
 
   const summaryTiles = useMemo(
     () => {
-      const paid = visibleInvoices.filter((item) => item.trangThaiThanhToan === 'PAID').length;
+      const paid = visibleInvoices.filter((item) => item.trangThaiThanhToan === 'PAID' || item.trangThaiThanhToan === 'PUBLISHED').length;
       const unpaid = visibleInvoices.length - paid;
 
       return [
@@ -427,6 +431,43 @@ export default function HouseholdDetailRoute() {
     router.push(`/households/${householdId}/history` as never);
   };
 
+  const syncInvoice = async (invoiceId: number) => {
+    setActionLoadingId(invoiceId);
+    setActionLabel('Đang đồng bộ hóa đơn...');
+    try {
+      const response = await httpClient.post<{
+        successCount: number;
+        failCount: number;
+        results: Array<{
+          invoiceId: number;
+          success: boolean;
+          message: string;
+          invoiceSerial?: string | null;
+          invoiceFkey?: string | null;
+        }>;
+      }>('/invoices/sync-metadata', {
+        invoiceIds: [invoiceId],
+      });
+
+      const result = response.data?.results?.[0];
+      if (result?.success) {
+        Alert.alert('Thành công', 'Đồng bộ hóa đơn thành công!');
+        void loadDetail();
+      } else {
+        Alert.alert('Thất bại', result?.message || 'Đồng bộ hóa đơn thất bại');
+      }
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error)
+          ? error.response?.data?.message ?? 'Đồng bộ hóa đơn thất bại'
+          : 'Đồng bộ hóa đơn thất bại';
+      Alert.alert('Lỗi', message);
+    } finally {
+      setActionLoadingId(null);
+      setActionLabel('');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
@@ -440,7 +481,7 @@ export default function HouseholdDetailRoute() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
       <View style={styles.headerCard}>
         <Text style={styles.kicker}>Chi tiết hộ dân</Text>
         <Text style={styles.title}>{data.household.tenChuHo}</Text>
@@ -487,9 +528,11 @@ export default function HouseholdDetailRoute() {
                       styles.statusChip,
                       invoice.trangThaiThanhToan === 'PAID'
                         ? styles.statusChipPaid
-                        : invoice.trangThaiThanhToan === 'OVERDUE'
-                          ? styles.statusChipOverdue
-                          : styles.statusChipUnpaid,
+                        : invoice.trangThaiThanhToan === 'PUBLISHED'
+                          ? styles.statusChipPublished
+                          : invoice.trangThaiThanhToan === 'OVERDUE'
+                            ? styles.statusChipOverdue
+                            : styles.statusChipUnpaid,
                     ]}>
                     <Text style={styles.statusText}>{getStatusLabel(invoice.trangThaiThanhToan)}</Text>
                   </View>
@@ -541,6 +584,14 @@ export default function HouseholdDetailRoute() {
                     style={({ pressed }) => [styles.actionButton, styles.actionButtonPrint, pressed && styles.pressed]}>
                     <Text style={styles.actionButtonText}>🖨 In phiếu thu</Text>
                   </Pressable>
+                  <Pressable
+                    onPress={() => void syncInvoice(invoice.id)}
+                    disabled={actionLoadingId === invoice.id}
+                    style={({ pressed }) => [styles.actionButton, styles.actionButtonSync, pressed && styles.pressed]}>
+                    <Text style={styles.actionButtonText}>
+                      {actionLoadingId === invoice.id && actionLabel.includes('đồng bộ') ? 'Đang xử lý...' : '🔄 Đồng bộ HĐ'}
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             );
@@ -562,6 +613,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f4f8f6',
   },
   container: {
     padding: 16,
@@ -723,6 +778,9 @@ const styles = StyleSheet.create({
   statusChipPaid: {
     backgroundColor: '#e5f7eb',
   },
+  statusChipPublished: {
+    backgroundColor: '#e1f5fe',
+  },
   statusChipUnpaid: {
     backgroundColor: '#fff6d8',
   },
@@ -775,6 +833,10 @@ const styles = StyleSheet.create({
   actionButtonPrint: {
     borderColor: '#d6dce6',
     backgroundColor: '#eef2f7',
+  },
+  actionButtonSync: {
+    borderColor: '#d8b4fe',
+    backgroundColor: '#f3e8ff',
   },
   actionButtonText: {
     color: '#173a30',

@@ -13,7 +13,7 @@ import axios from 'axios';
 
 import { httpClient } from '@/api/http-client';
 
-type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE';
+type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
 interface HouseholdInvoiceItem {
   id: number;
@@ -75,6 +75,14 @@ function formatCurrency(value: number) {
 }
 
 function getStatusLabel(status: PaymentStatus) {
+  if (status === 'PUBLISHED') {
+    return 'Đã xuất HĐ';
+  }
+
+  if (status === 'PAID') {
+    return 'Đã thu';
+  }
+
   if (status === 'OVERDUE') {
     return 'Quá hạn';
   }
@@ -134,7 +142,7 @@ export default function UnpaidInvoicesRoute() {
   }, [loadUnpaidInvoices]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
       <View style={styles.headerCard}>
         <Text style={styles.title}>Hóa đơn chưa thu</Text>
         <Text style={styles.subtitle}>Danh sách theo bộ lọc hiện tại từ màn hình chính</Text>
@@ -202,6 +210,10 @@ export default function UnpaidInvoicesRoute() {
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f4f8f6',
+  },
   container: {
     padding: 16,
     gap: 12,

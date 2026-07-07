@@ -168,6 +168,8 @@ export class InvoicesService {
       statusFilter = InvoicePaymentStatus.PAID;
     } else if (statusParam === 'UNPAID') {
       statusFilter = { in: [InvoicePaymentStatus.UNPAID, InvoicePaymentStatus.OVERDUE] };
+    } else if (statusParam === 'PUBLISHED') {
+      statusFilter = InvoicePaymentStatus.PUBLISHED;
     }
 
     const where: Prisma.InvoiceWhereInput = {
@@ -304,7 +306,7 @@ export class InvoicesService {
     const unpaidHouseholdCount = await this.prisma.invoice.count({
       where: {
         ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
-        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
         household: {
           ...(keyword
             ? {
@@ -582,7 +584,7 @@ export class InvoicesService {
     const updateResult = await this.prisma.invoice.updateMany({
       where: {
         id: { in: normalizedIds },
-        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
       },
       data: {
         trangThaiThanhToan: InvoicePaymentStatus.PAID,
@@ -745,9 +747,10 @@ export class InvoicesService {
       statusFilter = undefined;
     } else if (statusParam === 'PAID') {
       statusFilter = InvoicePaymentStatus.PAID;
+    } else if (statusParam === 'PUBLISHED') {
+      statusFilter = InvoicePaymentStatus.PUBLISHED;
     } else {
-      // Default to PAID (backwards compatible with Web Admin)
-      statusFilter = InvoicePaymentStatus.PAID;
+      statusFilter = { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] };
     }
 
     const where: Prisma.InvoiceWhereInput = {
@@ -832,7 +835,7 @@ export class InvoicesService {
       this.prisma.invoice.aggregate({
         where: {
           kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: InvoicePaymentStatus.PAID,
+          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
           household: {
             tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
             tuyenThuRac: {
@@ -851,7 +854,7 @@ export class InvoicesService {
       this.prisma.invoice.aggregate({
         where: {
           kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+          trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
           household: {
             tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
             tuyenThuRac: {
@@ -876,7 +879,7 @@ export class InvoicesService {
       this.prisma.invoice.count({
         where: {
           kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: InvoicePaymentStatus.PAID,
+          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
           household: {
             tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
             tuyenThuRac: {
@@ -891,7 +894,7 @@ export class InvoicesService {
       this.prisma.invoice.count({
         where: {
           kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+          trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
           household: {
             tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
             tuyenThuRac: {
@@ -1005,7 +1008,7 @@ export class InvoicesService {
 
     const where: Prisma.InvoiceWhereInput = {
       kyHoaDon: { in: kyList },
-      trangThaiThanhToan: InvoicePaymentStatus.PAID,
+      trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
       household: {
         tuyenThuRacId:
           Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
@@ -1143,7 +1146,7 @@ export class InvoicesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where: Prisma.InvoiceWhereInput = {
-      trangThaiThanhToan: InvoicePaymentStatus.PAID,
+      trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
       paymentDate: {
         gte: from,
         lte: to,
@@ -1394,7 +1397,7 @@ export class InvoicesService {
       const group = groupMap.get(key)!;
       if (item.householdId) {
         group.soHo.add(item.householdId);
-        if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+        if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID || item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED) {
           group.soHoDaThu.add(item.householdId);
         } else {
           group.soHoChuaThu.add(item.householdId);
@@ -1405,7 +1408,7 @@ export class InvoicesService {
       group.tongThue += Number(item.thue);
       group.tongCong += totalAmount;
 
-      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID || item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED) {
         group.daThuTien += Number(item.tongTien);
         group.daThuThue += Number(item.thue);
         group.daThuCong += totalAmount;
@@ -1483,7 +1486,7 @@ export class InvoicesService {
   async updateStatus(id: number, status: InvoicePaymentStatus) {
     await this.findOne(id);
 
-    const paymentDate = status === InvoicePaymentStatus.PAID ? new Date() : null;
+    const paymentDate = (status === InvoicePaymentStatus.PAID || status === InvoicePaymentStatus.PUBLISHED) ? new Date() : null;
 
     return this.prisma.invoice.update({
       where: { id },
@@ -1558,11 +1561,11 @@ export class InvoicesService {
 
       if (alreadyPublished.length > 0) {
         for (const invoice of alreadyPublished) {
-          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PAID) {
+          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PUBLISHED) {
             await this.prisma.invoice.update({
               where: { id: invoice.id },
               data: {
-                trangThaiThanhToan: InvoicePaymentStatus.PAID,
+                trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
                 paymentDate: invoice.paymentDate ?? new Date(),
               },
             });
@@ -1650,7 +1653,7 @@ export class InvoicesService {
             publishedById: currentUser?.sub,
             publishedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
             // Nghiệp vụ hiện tại: xuất hóa đơn xong mặc định xác nhận đã thu.
-            trangThaiThanhToan: InvoicePaymentStatus.PAID,
+            trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
             paymentDate: issuedAt,
             collectedById: currentUser?.sub,
             collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
@@ -1712,6 +1715,7 @@ export class InvoicesService {
         invoiceSerial: true,
         invoicePublishStatus: true,
         invoicePublishMessage: true,
+        paymentDate: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -1773,8 +1777,10 @@ export class InvoicesService {
           data: {
             invoiceSerial: syncSerial,
             invoiceFkey: syncFkey,
-            invoicePublishStatus: invoice.invoicePublishStatus || 'SUCCESS',
+            invoicePublishStatus: 'SUCCESS',
             invoicePublishMessage: 'Đã đồng bộ seri/fkey thành công',
+            trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
+            paymentDate: invoice.paymentDate ?? new Date(),
           },
         });
 

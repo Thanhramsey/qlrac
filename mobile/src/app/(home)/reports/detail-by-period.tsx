@@ -64,7 +64,7 @@ interface InvoiceDetailItem {
   thue: number;
   tongCong: number;
   paymentDate: string | null;
-  trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE';
+  trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE' | 'PUBLISHED';
 }
 
 interface InvoiceDetailReportResponse {
@@ -122,10 +122,11 @@ export default function DetailByPeriodReportRoute() {
   const [selectedKyHoaDons, setSelectedKyHoaDons] = useState<string[]>([]);
   const [selectedRouteIds, setSelectedRouteIds] = useState<number[]>([]);
   const [selectedCollectorId, setSelectedCollectorId] = useState<number | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<'PAID' | 'UNPAID' | 'ALL'>('PAID');
+  const [selectedStatus, setSelectedStatus] = useState<'PAID' | 'UNPAID' | 'ALL' | 'PUBLISHED'>('ALL');
 
   // Dropdown expand states
   const [expandedFilter, setExpandedFilter] = useState<'period' | 'route' | 'collector' | 'status' | null>(null);
+  const [filterCollapsed, setFilterCollapsed] = useState(false);
 
   // Report Data
   const [reportData, setReportData] = useState<InvoiceDetailItem[]>([]);
@@ -162,7 +163,8 @@ export default function DetailByPeriodReportRoute() {
   }, [selectedCollectorId, collectors]);
 
   const selectedStatusLabel = useMemo(() => {
-    if (selectedStatus === 'PAID') return 'Đã thu';
+    if (selectedStatus === 'PAID') return 'Đã thu (chưa xuất HĐ)';
+    if (selectedStatus === 'PUBLISHED') return 'Đã xuất hóa đơn';
     if (selectedStatus === 'UNPAID') return 'Chưa thu';
     return 'Tất cả';
   }, [selectedStatus]);
@@ -306,7 +308,7 @@ export default function DetailByPeriodReportRoute() {
     setExpandedFilter(null);
   };
 
-  const selectStatus = (status: 'PAID' | 'UNPAID' | 'ALL') => {
+  const selectStatus = (status: 'PAID' | 'UNPAID' | 'ALL' | 'PUBLISHED') => {
     setSelectedStatus(status);
     setExpandedFilter(null);
   };
@@ -361,12 +363,14 @@ export default function DetailByPeriodReportRoute() {
           styles.statusChip,
           item.trangThaiThanhToan === 'PAID'
             ? styles.statusPaid
-            : item.trangThaiThanhToan === 'OVERDUE'
-              ? styles.statusDebt
-              : styles.statusUnpaid
+            : item.trangThaiThanhToan === 'PUBLISHED'
+              ? styles.statusPublished
+              : item.trangThaiThanhToan === 'OVERDUE'
+                ? styles.statusDebt
+                : styles.statusUnpaid
         ]}>
           <Text style={styles.statusText}>
-            {item.trangThaiThanhToan === 'PAID' ? 'Đã thu' : item.trangThaiThanhToan === 'OVERDUE' ? 'Quá hạn' : 'Chưa thu'}
+            {item.trangThaiThanhToan === 'PUBLISHED' ? 'Đã xuất HĐ' : item.trangThaiThanhToan === 'PAID' ? 'Đã thu' : item.trangThaiThanhToan === 'OVERDUE' ? 'Quá hạn' : 'Chưa thu'}
           </Text>
         </View>
         <View style={[styles.publishChip, item.daPhatHanh ? styles.publishSuccess : styles.publishPending]}>
@@ -383,9 +387,14 @@ export default function DetailByPeriodReportRoute() {
     <View style={styles.headerContent}>
       {/* Filters Form */}
       <View style={styles.filterCard}>
-        <Text style={styles.filterTitle}>Bộ lọc báo cáo</Text>
+        <Pressable onPress={() => setFilterCollapsed(!filterCollapsed)} style={styles.filterHeaderPressable}>
+          <Text style={styles.filterTitle}>Bộ lọc báo cáo</Text>
+          <Text style={styles.filterToggleText}>{filterCollapsed ? 'Hiện bộ lọc ▾' : 'Thu gọn ▴'}</Text>
+        </Pressable>
 
-        <View style={styles.filterGrid}>
+        {!filterCollapsed && (
+          <>
+            <View style={styles.filterGrid}>
           {/* Billing Period Multi-Select Dropdown */}
           <View style={styles.filterField}>
             <Text style={styles.filterLabel}>Kỳ hóa đơn * (Chọn nhiều)</Text>
@@ -461,9 +470,15 @@ export default function DetailByPeriodReportRoute() {
               <View style={styles.dropdownPanel}>
                 <Pressable onPress={() => selectStatus('PAID')} style={styles.dropdownOption}>
                   <Text style={[styles.dropdownOptionText, selectedStatus === 'PAID' && styles.dropdownOptionTextActive]}>
-                    Đã thu
+                    Đã thu (chưa xuất HĐ)
                   </Text>
                   {selectedStatus === 'PAID' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                </Pressable>
+                <Pressable onPress={() => selectStatus('PUBLISHED')} style={styles.dropdownOption}>
+                  <Text style={[styles.dropdownOptionText, selectedStatus === 'PUBLISHED' && styles.dropdownOptionTextActive]}>
+                    Đã xuất hóa đơn
+                  </Text>
+                  {selectedStatus === 'PUBLISHED' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
                 </Pressable>
                 <Pressable onPress={() => selectStatus('UNPAID')} style={styles.dropdownOption}>
                   <Text style={[styles.dropdownOptionText, selectedStatus === 'UNPAID' && styles.dropdownOptionTextActive]}>
@@ -522,9 +537,11 @@ export default function DetailByPeriodReportRoute() {
           )}
         </View>
 
-        <Pressable onPress={handleSearch} style={styles.searchButton}>
-          <Text style={styles.searchButtonText}>Tìm kiếm báo cáo</Text>
-        </Pressable>
+            <Pressable onPress={handleSearch} style={styles.searchButton}>
+              <Text style={styles.searchButtonText}>Tìm kiếm báo cáo</Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       {/* Summary Card */}
@@ -727,8 +744,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#0d8a6a',
-    marginBottom: 12,
     textTransform: 'uppercase',
+  },
+  filterHeaderPressable: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  filterToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0d8a6a',
   },
   filterGrid: {
     gap: 12,
@@ -1088,6 +1115,9 @@ const styles = StyleSheet.create({
   },
   statusPaid: {
     backgroundColor: '#e5f7eb',
+  },
+  statusPublished: {
+    backgroundColor: '#e1f5fe',
   },
   statusUnpaid: {
     backgroundColor: '#fff6d8',

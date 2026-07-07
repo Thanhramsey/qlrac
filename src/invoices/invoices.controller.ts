@@ -83,13 +83,34 @@ export class InvoicesController {
     @Req() req: Request & { user?: JwtPayload },
     @Query('kyHoaDons') kyHoaDons?: string,
     @Query('kyHoaDon') kyHoaDon?: string,
+    @Query('tuyenThuRacIds') tuyenThuRacIds?: string,
+    @Query('tuyenThuRacId') tuyenThuRacId?: string,
+    @Query('serviceCatalogIds') serviceCatalogIds?: string,
+    @Query('serviceCatalogId') serviceCatalogId?: string,
+    @Query('keyword') keyword?: string,
   ) {
-    const kyHoaDonList = (kyHoaDons || kyHoaDon || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
+    const parseNumberList = (raw?: string) =>
+      (raw ?? '')
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((item) => Number.isInteger(item) && item > 0);
 
-    return this.invoicesService.getMobileUnpaidHouseholdCount(req.user, { kyHoaDons: kyHoaDonList });
+    const parseStringList = (raw?: string) =>
+      (raw ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+    const kyHoaDonList = parseStringList(kyHoaDons || kyHoaDon);
+    const routeIdList = parseNumberList(tuyenThuRacIds || tuyenThuRacId);
+    const serviceIdList = parseNumberList(serviceCatalogIds || serviceCatalogId);
+
+    return this.invoicesService.getMobileUnpaidHouseholdCount(req.user, {
+      kyHoaDons: kyHoaDonList,
+      tuyenThuRacIds: routeIdList,
+      serviceCatalogIds: serviceIdList,
+      keyword,
+    });
   }
 
   @Get()

@@ -249,27 +249,13 @@ export class InvoicesService {
     currentUser: JwtPayload | undefined,
     params: {
       kyHoaDons?: string[];
+      tuyenThuRacIds?: number[];
+      serviceCatalogIds?: number[];
+      keyword?: string;
     },
   ) {
     let kyHoaDons = [...new Set((params.kyHoaDons ?? []).map((item) => item.trim()).filter(Boolean))];
-
-    if (kyHoaDons.length === 0) {
-      const latestPeriod = await this.prisma.billingPeriod.findFirst({
-        orderBy: [{ ngayBatDau: 'desc' }, { id: 'desc' }],
-        select: { maKy: true },
-      });
-
-      if (latestPeriod?.maKy) {
-        kyHoaDons = [latestPeriod.maKy];
-      }
-    }
-
-    if (kyHoaDons.length === 0) {
-      return {
-        kyHoaDons: [],
-        unpaidHouseholdCount: 0,
-      };
-    }
+    const keyword = params.keyword?.trim() || undefined;
 
     const allowedRouteIds =
       currentUser?.role === 'STAFF'
@@ -288,12 +274,38 @@ export class InvoicesService {
       };
     }
 
+    const resolvedRouteIds = [...new Set((params.tuyenThuRacIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
+    const resolvedServiceIds = [...new Set((params.serviceCatalogIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
+
+    if (currentUser?.role === 'STAFF' && allowedRouteIds) {
+      if (resolvedRouteIds.some((routeId) => !allowedRouteIds.includes(routeId))) {
+        throw new BadRequestException('Tuyến thu gom không thuộc nhân viên hiện tại');
+      }
+    }
+
+    const routeIdFilter =
+      resolvedRouteIds.length > 0
+        ? resolvedRouteIds
+        : allowedRouteIds && allowedRouteIds.length > 0
+          ? allowedRouteIds
+          : undefined;
+
     const unpaidHouseholdCount = await this.prisma.invoice.count({
       where: {
-        kyHoaDon: { in: kyHoaDons },
+        ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
         trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
         household: {
-          ...(allowedRouteIds ? { tuyenThuRacId: { in: allowedRouteIds } } : {}),
+          ...(keyword
+            ? {
+                OR: [
+                  { tenChuHo: { contains: keyword, mode: 'insensitive' } },
+                  { maHoDan: { contains: keyword, mode: 'insensitive' } },
+                  { diaChi: { contains: keyword, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+          ...(routeIdFilter ? { tuyenThuRacId: { in: routeIdFilter } } : {}),
+          ...(resolvedServiceIds.length > 0 ? { serviceCatalogId: { in: resolvedServiceIds } } : {}),
         },
       },
     });

@@ -1,7 +1,9 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import prismaClientPkg from '@prisma/client';
+
+const { PrismaClient } = prismaClientPkg;
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -38,6 +40,25 @@ async function upsertRoles() {
 }
 
 async function upsertMenus() {
+  const dashboardManagement = await prisma.menu.upsert({
+    where: { menuKey: 'dashboard-management' },
+    update: {
+      tenMenu: 'Dashboard',
+      routePath: null,
+      parentId: null,
+      sortOrder: 5,
+      isActive: true,
+    },
+    create: {
+      menuKey: 'dashboard-management',
+      tenMenu: 'Dashboard',
+      routePath: null,
+      parentId: null,
+      sortOrder: 5,
+      isActive: true,
+    },
+  });
+
   const userManagement = await prisma.menu.upsert({
     where: { menuKey: 'user-management' },
     update: {
@@ -134,6 +155,13 @@ async function upsertMenus() {
   });
 
   const childMenus = [
+    {
+      menuKey: 'dashboard-overview',
+      tenMenu: 'Tổng quan đơn vị',
+      routePath: '/dashboard',
+      sortOrder: 10,
+      parentId: dashboardManagement.id,
+    },
     {
       menuKey: 'users',
       tenMenu: 'Danh sách người dùng',
@@ -245,6 +273,8 @@ async function assignRoleMenus() {
       .filter((item) => !['roles', 'user-permissions'].includes(item.menuKey))
       .map((item) => item.id),
     STAFF: [
+      'dashboard-management',
+      'dashboard-overview',
       'user-management',
       'households',
       'catalog-management',
@@ -259,6 +289,8 @@ async function assignRoleMenus() {
       .map((key) => menuIdByKey.get(key))
       .filter((id) => Number.isInteger(id)),
     ACCOUNTANT: [
+      'dashboard-management',
+      'dashboard-overview',
       'catalog-management',
       'service-catalogs',
       'billing-periods',

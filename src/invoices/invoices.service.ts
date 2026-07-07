@@ -935,9 +935,16 @@ export class InvoicesService {
         loaiDichVu: string;
         soHo: Set<number>;
         soHoDaThu: Set<number>;
+        soHoChuaThu: Set<number>;
         tongTien: number;
         tongThue: number;
         tongCong: number;
+        daThuTien: number;
+        daThuThue: number;
+        daThuCong: number;
+        chuaThuTien: number;
+        chuaThuThue: number;
+        chuaThuCong: number;
       }
     >();
 
@@ -958,9 +965,16 @@ export class InvoicesService {
           loaiDichVu: serviceName,
           soHo: new Set<number>(),
           soHoDaThu: new Set<number>(),
+          soHoChuaThu: new Set<number>(),
           tongTien: 0,
           tongThue: 0,
           tongCong: 0,
+          daThuTien: 0,
+          daThuThue: 0,
+          daThuCong: 0,
+          chuaThuTien: 0,
+          chuaThuThue: 0,
+          chuaThuCong: 0,
         });
       }
 
@@ -969,12 +983,24 @@ export class InvoicesService {
         group.soHo.add(item.householdId);
         if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
           group.soHoDaThu.add(item.householdId);
+        } else {
+          group.soHoChuaThu.add(item.householdId);
         }
       }
 
       group.tongTien += Number(item.tongTien);
       group.tongThue += Number(item.thue);
       group.tongCong += totalAmount;
+
+      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+        group.daThuTien += Number(item.tongTien);
+        group.daThuThue += Number(item.thue);
+        group.daThuCong += totalAmount;
+      } else {
+        group.chuaThuTien += Number(item.tongTien);
+        group.chuaThuThue += Number(item.thue);
+        group.chuaThuCong += totalAmount;
+      }
     }
 
     const data = Array.from(groupMap.values()).map((item) => ({
@@ -985,26 +1011,47 @@ export class InvoicesService {
       loaiDichVu: item.loaiDichVu,
       tongSoHo: item.soHo.size,
       daThuSoHo: item.soHoDaThu.size,
+      chuaThuSoHo: item.soHoChuaThu.size,
       tongTien: item.tongTien,
       tongThue: item.tongThue,
       tongCong: item.tongCong,
+      daThuTien: item.daThuTien,
+      daThuThue: item.daThuThue,
+      daThuCong: item.daThuCong,
+      chuaThuTien: item.chuaThuTien,
+      chuaThuThue: item.chuaThuThue,
+      chuaThuCong: item.chuaThuCong,
     }));
 
     const summary = data.reduce(
       (acc, item) => {
         acc.tongSoHo += item.tongSoHo;
         acc.daThuSoHo += item.daThuSoHo;
+        acc.chuaThuSoHo += item.chuaThuSoHo;
         acc.tongTien += item.tongTien;
         acc.tongThue += item.tongThue;
         acc.tongCong += item.tongCong;
+        acc.daThuTien += item.daThuTien;
+        acc.daThuThue += item.daThuThue;
+        acc.daThuCong += item.daThuCong;
+        acc.chuaThuTien += item.chuaThuTien;
+        acc.chuaThuThue += item.chuaThuThue;
+        acc.chuaThuCong += item.chuaThuCong;
         return acc;
       },
       {
         tongSoHo: 0,
         daThuSoHo: 0,
+        chuaThuSoHo: 0,
         tongTien: 0,
         tongThue: 0,
         tongCong: 0,
+        daThuTien: 0,
+        daThuThue: 0,
+        daThuCong: 0,
+        chuaThuTien: 0,
+        chuaThuThue: 0,
+        chuaThuCong: 0,
       },
     );
 

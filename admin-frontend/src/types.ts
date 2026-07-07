@@ -336,9 +336,16 @@ export interface InvoiceRevenueSummaryItem {
   loaiDichVu: string
   tongSoHo: number
   daThuSoHo: number
+  chuaThuSoHo: number
   tongTien: number
   tongThue: number
   tongCong: number
+  daThuTien: number
+  daThuThue: number
+  daThuCong: number
+  chuaThuTien: number
+  chuaThuThue: number
+  chuaThuCong: number
 }
 
 export interface InvoiceRevenueSummaryResponse {
@@ -346,9 +353,16 @@ export interface InvoiceRevenueSummaryResponse {
   summary: {
     tongSoHo: number
     daThuSoHo: number
+    chuaThuSoHo: number
     tongTien: number
     tongThue: number
     tongCong: number
+    daThuTien: number
+    daThuThue: number
+    daThuCong: number
+    chuaThuTien: number
+    chuaThuThue: number
+    chuaThuCong: number
   }
   pagination: PaginationMeta
 }
@@ -359,4 +373,51 @@ export interface SystemParameterItem {
   giaTri: string
   createdAt: string
   updatedAt: string
+}
+
+export interface DashboardOverviewResponse {
+  filter: {
+    kyHoaDons: string[]
+  }
+  summary: {
+    totalHouseholds: number
+    totalRoutes: number
+    totalUsers: number
+    totalInvoices: number
+    paidInvoices: number
+    unpaidInvoices: number
+    overdueInvoices: number
+    totalRevenue: number
+    paidRevenue: number
+    totalNeedToCollect: number
+  }
+  invoiceStatusChart: Array<{
+    key: 'PAID' | 'UNPAID' | 'OVERDUE'
+    label: string
+    count: number
+  }>
+  invoiceTrendChart: Array<{
+    maKy: string
+    tenKy: string
+    totalInvoices: number
+    paidInvoices: number
+    unpaidInvoices: number
+    overdueInvoices: number
+    totalRevenue: number
+    paidRevenue: number
+    needToCollectRevenue: number
+  }>
+  recentInvoices: Array<{
+    id: number
+    kyHoaDon: string
+    tongTien: number
+    thue: number
+    tongThanhToan: number
+    trangThaiThanhToan: 'PAID' | 'UNPAID' | 'OVERDUE'
+    createdAt: string
+    household: {
+      maHoDan: string
+      tenChuHo: string
+    }
+  }>
 }

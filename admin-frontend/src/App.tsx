@@ -44,6 +44,7 @@ import { SystemParametersPage } from './features/system-parameters-page'
 import { UserPermissionsPage } from './features/user-permissions-page'
 import { UsersPage } from './features/users-page'
 import { ReportsPage } from './features/reports-page'
+import { DashboardPage } from './features/dashboard-page'
 import type { LoginResponse, RoleOption, UserListItem } from './types'
 import './App.css'
 
@@ -511,6 +512,9 @@ function App() {
             </div>
           ) : null}
 
+          {!rolesLoading && (activeMenuKey === 'dashboard-overview' || activeMenuKey === 'dashboard-management') ? (
+            <DashboardPage />
+          ) : null}
           {!rolesLoading && activeMenuKey === 'users' ? <UsersPage roles={roles} /> : null}
           {!rolesLoading && activeMenuKey === 'households' ? <HouseholdsPage /> : null}
           {!rolesLoading && activeMenuKey === 'roles' ? (

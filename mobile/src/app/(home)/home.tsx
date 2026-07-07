@@ -265,11 +265,25 @@ export default function HomeRoute() {
   );
 
   const loadUnpaidCount = useCallback(
-    async (kyHoaDons?: string[]) => {
+    async (payload?: {
+      kyHoaDons?: string[];
+      tuyenThuRacIds?: number[];
+      serviceCatalogIds?: number[];
+      keyword?: string;
+    }) => {
       try {
         const response = await httpClient.get<MobileUnpaidCountResponse>('/invoices/mobile/unpaid-count', {
           params: {
-            kyHoaDons: kyHoaDons && kyHoaDons.length > 0 ? kyHoaDons.join(',') : undefined,
+            kyHoaDons: payload?.kyHoaDons && payload.kyHoaDons.length > 0 ? payload.kyHoaDons.join(',') : undefined,
+            tuyenThuRacIds:
+              payload?.tuyenThuRacIds && payload.tuyenThuRacIds.length > 0
+                ? payload.tuyenThuRacIds.join(',')
+                : undefined,
+            serviceCatalogIds:
+              payload?.serviceCatalogIds && payload.serviceCatalogIds.length > 0
+                ? payload.serviceCatalogIds.join(',')
+                : undefined,
+            keyword: payload?.keyword || undefined,
           },
         });
         setUnpaidCount(Number(response.data?.unpaidHouseholdCount ?? 0));
@@ -383,7 +397,12 @@ export default function HomeRoute() {
         serviceCatalogIds: nextServiceIds,
         keyword: searchText.trim() || undefined,
       });
-      await loadUnpaidCount(ensuredKys);
+      await loadUnpaidCount({
+        kyHoaDons: ensuredKys,
+        tuyenThuRacIds: nextRouteIds,
+        serviceCatalogIds: nextServiceIds,
+        keyword: searchText.trim() || undefined,
+      });
       Alert.alert('Thông báo', 'Đã làm mới dữ liệu phân tuyến và bộ lọc.');
     } catch {
       Alert.alert('Lỗi', 'Không tải lại được dữ liệu. Vui lòng thử lại.');
@@ -429,8 +448,20 @@ export default function HomeRoute() {
       return;
     }
 
-    void loadUnpaidCount(selectedKyHoaDons);
-  }, [session?.accessToken, selectedKyHoaDons, loadUnpaidCount]);
+    void loadUnpaidCount({
+      kyHoaDons: selectedKyHoaDons,
+      tuyenThuRacIds: selectedRouteIds,
+      serviceCatalogIds: selectedServiceIds,
+      keyword: searchText.trim() || undefined,
+    });
+  }, [
+    session?.accessToken,
+    selectedKyHoaDons,
+    selectedRouteIds,
+    selectedServiceIds,
+    searchText,
+    loadUnpaidCount,
+  ]);
 
   const runSearch = async () => {
     await loadHouseholds({
@@ -439,11 +470,24 @@ export default function HomeRoute() {
       serviceCatalogIds: selectedServiceIds,
       keyword: searchText.trim() || undefined,
     });
-    await loadUnpaidCount(selectedKyHoaDons);
+    await loadUnpaidCount({
+      kyHoaDons: selectedKyHoaDons,
+      tuyenThuRacIds: selectedRouteIds,
+      serviceCatalogIds: selectedServiceIds,
+      keyword: searchText.trim() || undefined,
+    });
   };
 
   const showUnpaidNotice = () => {
-    Alert.alert('Thông báo chưa thu', `Còn ${unpaidCount} hộ chưa thu trong kỳ đang chọn.`);
+    router.push({
+      pathname: '/unpaid-invoices',
+      params: {
+        kyHoaDons: selectedKyHoaDons.join(','),
+        tuyenThuRacIds: selectedRouteIds.join(','),
+        serviceCatalogIds: selectedServiceIds.join(','),
+        keyword: searchText.trim(),
+      },
+    } as never);
   };
 
   const toggleKy = (maKy: string) => {

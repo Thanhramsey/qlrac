@@ -16,11 +16,12 @@ export class ProvincesService {
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.province.findMany({
+        where: { isActive: true },
         skip,
         take: normalizedLimit,
         orderBy: { id: 'desc' },
       }),
-      this.prisma.province.count(),
+      this.prisma.province.count({ where: { isActive: true } }),
     ]);
 
     return {
@@ -35,7 +36,7 @@ export class ProvincesService {
   }
 
   async findOne(id: number) {
-    const province = await this.prisma.province.findUnique({ where: { id } });
+    const province = await this.prisma.province.findFirst({ where: { id, isActive: true } });
     if (!province) {
       throw new NotFoundException(`Province with id ${id} not found`);
     }
@@ -58,7 +59,24 @@ export class ProvincesService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.province.delete({ where: { id } });
+    await this.prisma.province.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const province = await this.prisma.province.findUnique({ where: { id } });
+    if (!province) {
+      throw new NotFoundException(`Province with id ${id} not found`);
+    }
+
+    await this.prisma.province.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 }

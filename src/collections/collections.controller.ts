@@ -53,4 +53,9 @@ export class CollectionsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.collectionsService.remove(id);
   }
+
+  @Patch(':id/restore')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.collectionsService.restore(id);
+  }
 }

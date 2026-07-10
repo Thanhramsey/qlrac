@@ -7,6 +7,7 @@ import {
   Popconfirm,
   Select,
   Space,
+  Switch,
   Table,
   Tabs,
   Upload,
@@ -94,6 +95,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
   const [routeModalOpen, setRouteModalOpen] = useState(false)
   const [routeSaving, setRouteSaving] = useState(false)
   const [editingRoute, setEditingRoute] = useState<RouteItem | null>(null)
+  const [includeInactiveRoutes, setIncludeInactiveRoutes] = useState(false)
 
   const [staffOptions, setStaffOptions] = useState<UserListItem[]>([])
 
@@ -177,7 +179,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
     setRoutesLoading(true)
     try {
       const response = await apiClient.get<PagedResponse<RouteItem>>('/routes', {
-        params: { page: 1, limit: 1000 },
+        params: { page: 1, limit: 1000, includeInactive: includeInactiveRoutes },
       })
       setRoutes(response.data.data)
     } catch (error) {
@@ -217,7 +219,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
     if (visible) {
       void fetchAll()
     }
-  }, [visible, canManageGeo])
+  }, [visible, canManageGeo, includeInactiveRoutes])
 
   useEffect(() => {
     if (!canManageGeo && activeTab !== 'routes') {
@@ -356,6 +358,21 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
     }
   }
 
+  const restoreItem = async (
+    endpoint: string,
+    id: number,
+    successMessage: string,
+    reload: () => Promise<void>,
+  ) => {
+    try {
+      await apiClient.patch(`${endpoint}/${id}/restore`)
+      message.success(successMessage)
+      await reload()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Thao tác thất bại')
+    }
+  }
+
   const downloadRouteTemplate = () => {
     const importRows = [
       {
@@ -413,6 +430,10 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
               children: (
                 <>
                   <Space style={{ width: '100%', justifyContent: 'flex-end', marginBottom: 12 }}>
+                    <Space>
+                      <span>Hiện đã xóa</span>
+                      <Switch checked={includeInactiveRoutes} onChange={setIncludeInactiveRoutes} />
+                    </Space>
                     <Button
                       className="excel-green-btn"
                       icon={<UploadOutlined />}
@@ -493,6 +514,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             <Button
                               size="small"
                               icon={<EditOutlined />}
+                              disabled={!record.isActive}
                               onClick={() => {
                                 setEditingRoute(record)
                                 routeForm.setFieldsValue({
@@ -505,17 +527,28 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                                 setRouteModalOpen(true)
                               }}
                             />
-                            <Popconfirm
-                              title="Xóa tuyến đường"
-                              description="Bạn chắc chắn muốn xóa tuyến đường này?"
-                              okText="Xóa"
-                              cancelText="Hủy"
-                              onConfirm={() =>
-                                void deleteItem('/routes', record.id, 'Xóa tuyến đường thành công', fetchRoutes)
-                              }
-                            >
-                              <Button danger size="small" icon={<DeleteOutlined />} />
-                            </Popconfirm>
+                            {record.isActive ? (
+                              <Popconfirm
+                                title="Xóa tuyến đường"
+                                description="Bạn chắc chắn muốn xóa tuyến đường này?"
+                                okText="Xóa"
+                                cancelText="Hủy"
+                                onConfirm={() =>
+                                  void deleteItem('/routes', record.id, 'Xóa tuyến đường thành công', fetchRoutes)
+                                }
+                              >
+                                <Button danger size="small" icon={<DeleteOutlined />} />
+                              </Popconfirm>
+                            ) : (
+                              <Button
+                                size="small"
+                                onClick={() =>
+                                  void restoreItem('/routes', record.id, 'Khôi phục tuyến đường thành công', fetchRoutes)
+                                }
+                              >
+                                Khôi phục
+                              </Button>
+                            )}
                           </Space>
                         ),
                       },

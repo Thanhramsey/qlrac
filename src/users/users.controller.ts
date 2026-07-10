@@ -75,8 +75,16 @@ export class UsersController {
 
   @Get()
   @Roles('ADMIN', 'ADMIN_LEVEL_2')
-  findAll(@Query('page') page = '1', @Query('limit') limit = '20') {
-    return this.usersService.findAll(Number(page), Number(limit));
+  findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('includeInactive') includeInactive = 'false',
+  ) {
+    return this.usersService.findAll(
+      Number(page),
+      Number(limit),
+      includeInactive === 'true',
+    );
   }
 
   @Get(':id')
@@ -112,5 +120,11 @@ export class UsersController {
   @Roles('ADMIN')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.restore(id);
   }
 }

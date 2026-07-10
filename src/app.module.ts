@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HouseholdsModule } from './households/households.module';
@@ -18,6 +19,8 @@ import { MenusModule } from './menus/menus.module';
 import { BillingPeriodsModule } from './billing-periods/billing-periods.module';
 import { SystemParametersModule } from './system-parameters/system-parameters.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { UserActionLogsModule } from './user-action-logs/user-action-logs.module';
+import { UserActionLogInterceptor } from './user-action-logs/user-action-log.interceptor';
 
 @Module({
   imports: [
@@ -37,9 +40,16 @@ import { DashboardModule } from './dashboard/dashboard.module';
     SystemParametersModule,
     DashboardModule,
     MenusModule,
+    UserActionLogsModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UserActionLogInterceptor,
+    },
+  ],
 })
 export class AppModule {}

@@ -24,11 +24,21 @@ export class ServiceCatalogsController {
   constructor(private readonly serviceCatalogsService: ServiceCatalogsService) {}
 
   @Get()
-  findAll(@Query('page') page = '1', @Query('limit') limit = '20') {
-    return this.serviceCatalogsService.findAll(Number(page), Number(limit));
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
+  findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('includeInactive') includeInactive = 'false',
+  ) {
+    return this.serviceCatalogsService.findAll(
+      Number(page),
+      Number(limit),
+      includeInactive === 'true',
+    );
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.serviceCatalogsService.findOne(id);
   }
@@ -52,5 +62,11 @@ export class ServiceCatalogsController {
   @Roles('ADMIN')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.serviceCatalogsService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.serviceCatalogsService.restore(id);
   }
 }

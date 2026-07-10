@@ -50,7 +50,6 @@ export class InvoicesController {
     @Query('tuyenThuRacId') tuyenThuRacId?: string,
     @Query('serviceCatalogIds') serviceCatalogIds?: string,
     @Query('serviceCatalogId') serviceCatalogId?: string,
-    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('keyword') keyword?: string,
   ) {
     const parseNumberList = (raw?: string) =>
@@ -75,7 +74,6 @@ export class InvoicesController {
       kyHoaDons: kyHoaDonList,
       tuyenThuRacIds: routeIdList,
       serviceCatalogIds: serviceIdList,
-      trangThaiThanhToan,
       keyword,
     });
   }
@@ -152,40 +150,23 @@ export class InvoicesController {
   }
 
   @Get('reports/detail-by-period')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getDetailReportByPeriod(
-    @Req() req: Request & { user?: JwtPayload },
     @Query('kyHoaDon') kyHoaDon?: string,
-    @Query('kyHoaDons') kyHoaDons?: string,
     @Query('collectorId') collectorId?: string,
     @Query('routeId') routeId?: string,
-    @Query('routeIds') routeIds?: string,
-    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
-    const user = req.user;
-    const finalCollectorId =
-      user?.role === 'STAFF'
-        ? user.sub
-        : collectorId
-          ? Number(collectorId)
-          : undefined;
-
     return this.invoicesService.getDetailReportByPeriod({
       kyHoaDon,
-      kyHoaDons,
-      collectorId: finalCollectorId,
+      collectorId: collectorId ? Number(collectorId) : undefined,
       routeId: routeId ? Number(routeId) : undefined,
-      routeIds,
-      trangThaiThanhToan,
       page: Number(page),
       limit: Number(limit),
     });
   }
 
   @Get('reports/detail-by-period-range')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getDetailReportByPeriodRange(
     @Query('fromKy') fromKy?: string,
     @Query('toKy') toKy?: string,
@@ -205,7 +186,6 @@ export class InvoicesController {
   }
 
   @Get('reports/detail-by-date')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getDetailReportByDate(
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
@@ -225,7 +205,6 @@ export class InvoicesController {
   }
 
   @Get('reports/revenue-summary')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getRevenueSummaryReport(
     @Query('kyHoaDon') kyHoaDon?: string,
     @Query('routeId') routeId?: string,
@@ -249,7 +228,6 @@ export class InvoicesController {
   }
 
   @Post('publish')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   @HttpCode(HttpStatus.OK)
   publishInvoices(
     @Req() req: Request & { user?: JwtPayload },
@@ -281,7 +259,7 @@ export class InvoicesController {
   }
 
   @Post('sync-metadata')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
   @HttpCode(HttpStatus.OK)
   syncPublishMetadata(@Body('invoiceIds') invoiceIdsRaw?: number[] | string) {
     let parsedIds: number[] = [];
@@ -317,13 +295,11 @@ export class InvoicesController {
   }
 
   @Get(':id/download-vnpt')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   downloadInvoiceVnpt(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.downloadInvoice(id);
   }
 
   @Post('collect')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   @UseInterceptors(
     FileInterceptor('receiptImage', {
       storage: diskStorage({
@@ -389,7 +365,6 @@ export class InvoicesController {
   }
 
   @Patch(':id/status')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('trangThaiThanhToan') trangThaiThanhToan?: 'UNPAID' | 'PAID' | 'OVERDUE',
@@ -404,5 +379,11 @@ export class InvoicesController {
   @Roles('ADMIN', 'ADMIN_LEVEL_2')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.invoicesService.restore(id);
   }
 }

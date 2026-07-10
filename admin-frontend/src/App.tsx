@@ -41,6 +41,7 @@ import BillingPeriodsPage from './features/billing-periods-page'
 import { RolesPage } from './features/roles-page'
 import { ServiceCatalogsPage } from './features/service-catalogs-page'
 import { SystemParametersPage } from './features/system-parameters-page'
+import { UserActionLogsPage } from './features/user-action-logs-page'
 import { UserPermissionsPage } from './features/user-permissions-page'
 import { UsersPage } from './features/users-page'
 import { ReportsPage } from './features/reports-page'
@@ -387,7 +388,7 @@ function App() {
   useEffect(() => {
     const canManageRoles = session?.menus?.some((parent) =>
       (parent.children ?? []).some((child) =>
-        ['users', 'roles', 'user-permissions', 'households'].includes(child.key),
+        ['users', 'roles', 'user-permissions'].includes(child.key),
       ),
     )
 
@@ -535,6 +536,7 @@ function App() {
           ) : null}
           {!rolesLoading && activeMenuKey === 'service-catalogs' ? <ServiceCatalogsPage /> : null}
           {!rolesLoading && activeMenuKey === 'system-parameters' ? <SystemParametersPage /> : null}
+          {!rolesLoading && activeMenuKey === 'user-action-logs' ? <UserActionLogsPage /> : null}
           {!rolesLoading && activeMenuKey === 'billing-periods' ? <BillingPeriodsPage /> : null}
           {!rolesLoading && activeMenuKey === 'invoice-collections' ? <InvoiceCollectionsPage /> : null}
           {!rolesLoading && (activeMenuKey === 'reports' || activeMenuKey === 'reports-detail-period') ? (

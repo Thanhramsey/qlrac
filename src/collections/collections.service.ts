@@ -16,11 +16,12 @@ export class CollectionsService {
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.collection.findMany({
+        where: { isActive: true },
         skip,
         take: normalizedLimit,
         orderBy: { id: 'desc' },
       }),
-      this.prisma.collection.count(),
+      this.prisma.collection.count({ where: { isActive: true } }),
     ]);
 
     return {
@@ -35,8 +36,8 @@ export class CollectionsService {
   }
 
   async findOne(id: number) {
-    const collection = await this.prisma.collection.findUnique({
-      where: { id },
+    const collection = await this.prisma.collection.findFirst({
+      where: { id, isActive: true },
     });
 
     if (!collection) {
@@ -71,7 +72,24 @@ export class CollectionsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.collection.delete({ where: { id } });
+    await this.prisma.collection.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const collection = await this.prisma.collection.findUnique({ where: { id } });
+    if (!collection) {
+      throw new NotFoundException(`Collection with id ${id} not found`);
+    }
+
+    await this.prisma.collection.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 }

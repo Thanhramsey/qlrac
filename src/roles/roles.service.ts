@@ -13,12 +13,13 @@ export class RolesService {
 
   findAll() {
     return this.prisma.role.findMany({
+      where: { isActive: true },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async findOne(code: string) {
-    const role = await this.prisma.role.findUnique({ where: { code } });
+    const role = await this.prisma.role.findFirst({ where: { code, isActive: true } });
     if (!role) {
       throw new NotFoundException('Quyền không tồn tại');
     }
@@ -71,7 +72,24 @@ export class RolesService {
       );
     }
 
-    await this.prisma.role.delete({ where: { code } });
+    await this.prisma.role.update({
+      where: { code },
+      data: { isActive: false },
+    });
+    return { code };
+  }
+
+  async restore(code: string) {
+    const role = await this.prisma.role.findUnique({ where: { code } });
+    if (!role) {
+      throw new NotFoundException('Quyền không tồn tại');
+    }
+
+    await this.prisma.role.update({
+      where: { code },
+      data: { isActive: true },
+    });
+
     return { code };
   }
 

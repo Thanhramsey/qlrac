@@ -12,7 +12,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class RoutesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(page = 1, limit = 20, localityId?: number, staffId?: number) {
+  async findAll(
+    page = 1,
+    limit = 20,
+    localityId?: number,
+    staffId?: number,
+    includeInactive = false,
+  ) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
     const normalizedLimit = Number.isFinite(limit)
       ? Math.min(Math.max(limit, 1), 100)
@@ -20,6 +26,7 @@ export class RoutesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where = {
+      ...(includeInactive ? {} : { isActive: true }),
       ...(Number.isFinite(localityId)
         ? { localityId: Number(localityId) }
         : {}),
@@ -80,8 +87,8 @@ export class RoutesService {
   }
 
   async findOne(id: number) {
-    const route = await this.prisma.route.findUnique({
-      where: { id },
+    const route = await this.prisma.route.findFirst({
+      where: { id, isActive: true },
       include: {
         locality: {
           select: {
@@ -194,7 +201,24 @@ export class RoutesService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.route.delete({ where: { id } });
+    await this.prisma.route.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const route = await this.prisma.route.findUnique({ where: { id } });
+    if (!route) {
+      throw new NotFoundException(`Route with id ${id} not found`);
+    }
+
+    await this.prisma.route.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 
@@ -277,8 +301,8 @@ export class RoutesService {
   }
 
   private async ensureLocalityExists(localityId: number) {
-    const locality = await this.prisma.locality.findUnique({
-      where: { id: localityId },
+    const locality = await this.prisma.locality.findFirst({
+      where: { id: localityId, isActive: true },
       select: { id: true },
     });
 

@@ -28,8 +28,14 @@ export class SystemParametersController {
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('keyword') keyword?: string,
+    @Query('includeInactive') includeInactive = 'false',
   ) {
-    return this.systemParametersService.findAll(Number(page), Number(limit), keyword);
+    return this.systemParametersService.findAll(
+      Number(page),
+      Number(limit),
+      keyword,
+      includeInactive === 'true',
+    );
   }
 
   @Get(':id')
@@ -53,5 +59,11 @@ export class SystemParametersController {
   @Roles('ADMIN')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.systemParametersService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.systemParametersService.restore(id);
   }
 }

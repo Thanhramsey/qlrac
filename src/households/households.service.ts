@@ -20,6 +20,7 @@ export class HouseholdsService {
     tuyenThuRacId?: number,
     tenChuHo?: string,
     diaChi?: string,
+    includeInactive = false,
   ) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
     const normalizedLimit = Number.isFinite(limit)
@@ -36,6 +37,7 @@ export class HouseholdsService {
         : undefined;
 
     const where: Prisma.HouseholdWhereInput = {
+      ...(includeInactive ? {} : { isActive: true }),
       ...(normalizedServiceCatalogId
         ? { serviceCatalogId: normalizedServiceCatalogId }
         : {}),
@@ -100,8 +102,8 @@ export class HouseholdsService {
   }
 
   async findOne(id: number) {
-    const household = await this.prisma.household.findUnique({
-      where: { id },
+    const household = await this.prisma.household.findFirst({
+      where: { id, isActive: true },
       include: {
         tuyenThuRac: {
           select: {
@@ -227,6 +229,7 @@ export class HouseholdsService {
       await this.prisma.invoice.updateMany({
         where: {
           householdId: id,
+          isActive: true,
           trangThaiThanhToan: { not: 'PAID' },
         },
         data: {
@@ -241,7 +244,24 @@ export class HouseholdsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.household.delete({ where: { id } });
+    await this.prisma.household.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const household = await this.prisma.household.findUnique({ where: { id } });
+    if (!household) {
+      throw new NotFoundException(`Household with id ${id} not found`);
+    }
+
+    await this.prisma.household.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 

@@ -53,4 +53,10 @@ export class ProvincesController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.provincesService.remove(id);
   }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.provincesService.restore(id);
+  }
 }

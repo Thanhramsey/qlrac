@@ -191,6 +191,13 @@ async function upsertMenus() {
       parentId: userManagement.id,
     },
     {
+      menuKey: 'user-action-logs',
+      tenMenu: 'Nhật ký thao tác',
+      routePath: '/user-action-logs',
+      sortOrder: 35,
+      parentId: userManagement.id,
+    },
+    {
       menuKey: 'locations',
       tenMenu: 'Quản lý địa danh',
       routePath: '/locations',

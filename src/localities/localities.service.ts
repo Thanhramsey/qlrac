@@ -14,7 +14,9 @@ export class LocalitiesService {
       : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
-    const where = Number.isFinite(wardId) ? { wardId: Number(wardId) } : undefined;
+    const where = Number.isFinite(wardId)
+      ? { wardId: Number(wardId), isActive: true }
+      : { isActive: true };
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.locality.findMany({
@@ -54,8 +56,8 @@ export class LocalitiesService {
   }
 
   async findOne(id: number) {
-    const locality = await this.prisma.locality.findUnique({
-      where: { id },
+    const locality = await this.prisma.locality.findFirst({
+      where: { id, isActive: true },
       include: {
         ward: {
           select: {
@@ -144,13 +146,30 @@ export class LocalitiesService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.locality.delete({ where: { id } });
+    await this.prisma.locality.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const locality = await this.prisma.locality.findUnique({ where: { id } });
+    if (!locality) {
+      throw new NotFoundException(`Locality with id ${id} not found`);
+    }
+
+    await this.prisma.locality.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 
   private async ensureWardExists(wardId: number) {
-    const ward = await this.prisma.ward.findUnique({
-      where: { id: wardId },
+    const ward = await this.prisma.ward.findFirst({
+      where: { id: wardId, isActive: true },
       select: { id: true },
     });
 

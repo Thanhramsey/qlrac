@@ -15,8 +15,8 @@ export class WardsService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where = Number.isFinite(provinceId)
-      ? { provinceId: Number(provinceId) }
-      : undefined;
+      ? { provinceId: Number(provinceId), isActive: true }
+      : { isActive: true };
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.ward.findMany({
@@ -49,8 +49,8 @@ export class WardsService {
   }
 
   async findOne(id: number) {
-    const ward = await this.prisma.ward.findUnique({
-      where: { id },
+    const ward = await this.prisma.ward.findFirst({
+      where: { id, isActive: true },
       include: {
         province: {
           select: {
@@ -118,13 +118,30 @@ export class WardsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.ward.delete({ where: { id } });
+    await this.prisma.ward.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const ward = await this.prisma.ward.findUnique({ where: { id } });
+    if (!ward) {
+      throw new NotFoundException(`Ward with id ${id} not found`);
+    }
+
+    await this.prisma.ward.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 
   private async ensureProvinceExists(provinceId: number) {
-    const province = await this.prisma.province.findUnique({
-      where: { id: provinceId },
+    const province = await this.prisma.province.findFirst({
+      where: { id: provinceId, isActive: true },
       select: { id: true },
     });
 

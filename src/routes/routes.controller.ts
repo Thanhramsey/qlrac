@@ -34,12 +34,14 @@ export class RoutesController {
     @Query('limit') limit = '20',
     @Query('localityId') localityId?: string,
     @Query('staffId') staffId?: string,
+    @Query('includeInactive') includeInactive = 'false',
   ) {
     return this.routesService.findAll(
       Number(page),
       Number(limit),
       localityId ? Number(localityId) : undefined,
       staffId ? Number(staffId) : undefined,
+      includeInactive === 'true',
     );
   }
 
@@ -72,5 +74,11 @@ export class RoutesController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.routesService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.routesService.restore(id);
   }
 }

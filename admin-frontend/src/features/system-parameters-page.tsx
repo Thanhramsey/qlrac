@@ -6,6 +6,7 @@ import {
   Modal,
   Popconfirm,
   Space,
+  Switch,
   Table,
   Typography,
   message,
@@ -28,6 +29,7 @@ export function SystemParametersPage() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(20)
   const [total, setTotal] = useState(0)
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<SystemParameterFormValues>()
 
@@ -35,7 +37,7 @@ export function SystemParametersPage() {
     setLoading(true)
     try {
       const response = await apiClient.get<PagedResponse<SystemParameterItem>>('/system-parameters', {
-        params: { page: nextPage, limit: nextLimit },
+        params: { page: nextPage, limit: nextLimit, includeInactive },
       })
 
       setItems(response.data.data)
@@ -51,7 +53,7 @@ export function SystemParametersPage() {
 
   useEffect(() => {
     void fetchData(1, limit)
-  }, [])
+  }, [includeInactive])
 
   const openCreateModal = () => {
     setEditingItem(null)
@@ -107,6 +109,16 @@ export function SystemParametersPage() {
     }
   }
 
+  const handleRestore = async (id: number) => {
+    try {
+      await apiClient.patch(`/system-parameters/${id}/restore`)
+      message.success('Khôi phục tham số thành công')
+      void fetchData(page, limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không thể khôi phục tham số')
+    }
+  }
+
   const columns = useMemo(
     () => [
       {
@@ -140,20 +152,26 @@ export function SystemParametersPage() {
         fixed: 'right' as const,
         render: (_: unknown, item: SystemParameterItem) => (
           <Space>
-            <Button size="small" onClick={() => openEditModal(item)}>
+            <Button size="small" onClick={() => openEditModal(item)} disabled={!item.isActive}>
               Sửa
             </Button>
-            <Popconfirm
-              title="Xóa tham số"
-              description={`Bạn có chắc muốn xóa ${item.tenThamSo}?`}
-              okText="Xóa"
-              cancelText="Hủy"
-              onConfirm={() => handleDelete(item.id)}
-            >
-              <Button size="small" danger>
-                Xóa
+            {item.isActive ? (
+              <Popconfirm
+                title="Xóa tham số"
+                description={`Bạn có chắc muốn xóa ${item.tenThamSo}?`}
+                okText="Xóa"
+                cancelText="Hủy"
+                onConfirm={() => handleDelete(item.id)}
+              >
+                <Button size="small" danger>
+                  Xóa
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Button size="small" onClick={() => handleRestore(item.id)}>
+                Khôi phục
               </Button>
-            </Popconfirm>
+            )}
           </Space>
         ),
       },
@@ -166,9 +184,15 @@ export function SystemParametersPage() {
       className="page-card"
       title={<Typography.Title level={5}>Tham số hệ thống</Typography.Title>}
       extra={
-        <Button type="primary" onClick={openCreateModal}>
-          Thêm tham số
-        </Button>
+        <Space>
+          <Space>
+            <span>Hiện đã xóa</span>
+            <Switch checked={includeInactive} onChange={setIncludeInactive} />
+          </Space>
+          <Button type="primary" onClick={openCreateModal}>
+            Thêm tham số
+          </Button>
+        </Space>
       }
     >
       <Table<SystemParameterItem>

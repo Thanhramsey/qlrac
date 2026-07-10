@@ -8,20 +8,23 @@ import { UpdateServiceCatalogDto } from './dto/update-service-catalog.dto';
 export class ServiceCatalogsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(page = 1, limit = 20) {
+  async findAll(page = 1, limit = 20, includeInactive = false) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
     const normalizedLimit = Number.isFinite(limit)
       ? Math.min(Math.max(limit, 1), 100)
       : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
+    const where = includeInactive ? undefined : { isActive: true };
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.serviceCatalog.findMany({
+        where,
         skip,
         take: normalizedLimit,
         orderBy: { id: 'desc' },
       }),
-      this.prisma.serviceCatalog.count(),
+      this.prisma.serviceCatalog.count({ where }),
     ]);
 
     return {
@@ -36,8 +39,8 @@ export class ServiceCatalogsService {
   }
 
   async findOne(id: number) {
-    const service = await this.prisma.serviceCatalog.findUnique({
-      where: { id },
+    const service = await this.prisma.serviceCatalog.findFirst({
+      where: { id, isActive: true },
     });
 
     if (!service) {
@@ -93,7 +96,24 @@ export class ServiceCatalogsService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.serviceCatalog.delete({ where: { id } });
+    await this.prisma.serviceCatalog.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const service = await this.prisma.serviceCatalog.findUnique({ where: { id } });
+    if (!service) {
+      throw new NotFoundException(`Service catalog with id ${id} not found`);
+    }
+
+    await this.prisma.serviceCatalog.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 

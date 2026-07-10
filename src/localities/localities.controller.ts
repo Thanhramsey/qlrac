@@ -61,4 +61,10 @@ export class LocalitiesController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.localitiesService.remove(id);
   }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.localitiesService.restore(id);
+  }
 }

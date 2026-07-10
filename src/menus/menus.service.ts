@@ -33,6 +33,7 @@ export class MenusService {
 
   async findAll(): Promise<MenuTreeNode[]> {
     const menus = await this.prisma.menu.findMany({
+      where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
 
@@ -120,12 +121,29 @@ export class MenusService {
   async remove(id: number) {
     await this.findOne(id);
 
-    const totalChildren = await this.prisma.menu.count({ where: { parentId: id } });
+    const totalChildren = await this.prisma.menu.count({ where: { parentId: id, isActive: true } });
     if (totalChildren > 0) {
       throw new BadRequestException('Không thể xóa menu đang có menu con');
     }
 
-    await this.prisma.menu.delete({ where: { id } });
+    await this.prisma.menu.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const menu = await this.prisma.menu.findUnique({ where: { id } });
+    if (!menu) {
+      throw new NotFoundException('Menu không tồn tại');
+    }
+
+    await this.prisma.menu.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 
@@ -197,7 +215,7 @@ export class MenusService {
   }
 
   private async findOne(id: number) {
-    const menu = await this.prisma.menu.findUnique({ where: { id } });
+    const menu = await this.prisma.menu.findFirst({ where: { id, isActive: true } });
     if (!menu) {
       throw new NotFoundException('Menu không tồn tại');
     }
@@ -209,7 +227,7 @@ export class MenusService {
   }
 
   private async ensureRoleExists(code: string) {
-    const role = await this.prisma.role.findUnique({ where: { code } });
+    const role = await this.prisma.role.findFirst({ where: { code, isActive: true } });
     if (!role) {
       throw new NotFoundException('Quyền không tồn tại');
     }

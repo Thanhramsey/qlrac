@@ -110,7 +110,6 @@ export class InvoicesService {
       kyHoaDons?: string[];
       tuyenThuRacIds?: number[];
       serviceCatalogIds?: number[];
-      trangThaiThanhToan?: string;
       keyword?: string;
     },
   ) {
@@ -161,20 +160,9 @@ export class InvoicesService {
           ? allowedRouteIds
           : undefined;
 
-    const statusParam = params.trangThaiThanhToan?.trim().toUpperCase();
-    let statusFilter: Prisma.InvoiceWhereInput['trangThaiThanhToan'] = undefined;
-
-    if (statusParam === 'PAID') {
-      statusFilter = InvoicePaymentStatus.PAID;
-    } else if (statusParam === 'UNPAID') {
-      statusFilter = { in: [InvoicePaymentStatus.UNPAID, InvoicePaymentStatus.OVERDUE] };
-    } else if (statusParam === 'PUBLISHED') {
-      statusFilter = InvoicePaymentStatus.PUBLISHED;
-    }
-
     const where: Prisma.InvoiceWhereInput = {
+      isActive: true,
       ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
-      ...(statusFilter ? { trangThaiThanhToan: statusFilter } : {}),
       household: {
         ...(keyword
           ? {
@@ -306,7 +294,7 @@ export class InvoicesService {
     const unpaidHouseholdCount = await this.prisma.invoice.count({
       where: {
         ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
-        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
         household: {
           ...(keyword
             ? {
@@ -348,6 +336,7 @@ export class InvoicesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where: Prisma.InvoiceWhereInput = {
+      isActive: true,
       kyHoaDon: filters?.kyHoaDon?.trim() || undefined,
       trangThaiThanhToan: filters?.trangThaiThanhToan,
       household: {
@@ -410,8 +399,8 @@ export class InvoicesService {
   }
 
   async findOne(id: number) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id },
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, isActive: true },
       include: {
         household: {
           select: {
@@ -572,7 +561,7 @@ export class InvoicesService {
     }
 
     const existing = await this.prisma.invoice.findMany({
-      where: { id: { in: normalizedIds } },
+      where: { id: { in: normalizedIds }, isActive: true },
       select: { id: true },
     });
 
@@ -584,7 +573,8 @@ export class InvoicesService {
     const updateResult = await this.prisma.invoice.updateMany({
       where: {
         id: { in: normalizedIds },
-        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+        isActive: true,
+        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
       },
       data: {
         trangThaiThanhToan: InvoicePaymentStatus.PAID,
@@ -597,7 +587,7 @@ export class InvoicesService {
     });
 
     const updatedInvoices = await this.prisma.invoice.findMany({
-      where: { id: { in: normalizedIds } },
+      where: { id: { in: normalizedIds }, isActive: true },
       include: {
         household: {
           select: {
@@ -634,7 +624,7 @@ export class InvoicesService {
     }
 
     const invoices = await this.prisma.invoice.findMany({
-      where: { householdId },
+      where: { householdId, isActive: true },
       orderBy: [{ kyHoaDon: 'desc' }, { id: 'desc' }],
     });
 
@@ -702,35 +692,15 @@ export class InvoicesService {
 
   async getDetailReportByPeriod(params: {
     kyHoaDon?: string;
-    kyHoaDons?: string;
     collectorId?: number;
     routeId?: number;
-    routeIds?: string;
-    trangThaiThanhToan?: string;
     page?: number;
     limit?: number;
   }) {
-    const kyHoaDons = params.kyHoaDons
-      ? params.kyHoaDons
-          .split(',')
-          .map((k) => k.trim())
-          .filter((k) => k.length > 0)
-      : params.kyHoaDon?.trim()
-        ? [params.kyHoaDon.trim()]
-        : [];
-
-    if (kyHoaDons.length === 0) {
-      throw new BadRequestException('Vui lòng chọn ít nhất một kỳ hóa đơn');
+    const kyHoaDon = params.kyHoaDon?.trim();
+    if (!kyHoaDon) {
+      throw new BadRequestException('Vui lòng chọn kỳ hóa đơn');
     }
-
-    const routeIds = params.routeIds
-      ? params.routeIds
-          .split(',')
-          .map((id) => Number(id.trim()))
-          .filter((id) => Number.isInteger(id) && id > 0)
-      : Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
-        ? [Number(params.routeId)]
-        : [];
 
     const normalizedPage = Number.isFinite(params.page) && (params.page ?? 0) > 0 ? Number(params.page) : 1;
     const normalizedLimit = Number.isFinite(params.limit)
@@ -738,26 +708,16 @@ export class InvoicesService {
       : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
-    const statusParam = params.trangThaiThanhToan?.trim().toUpperCase();
-    let statusFilter: Prisma.InvoiceWhereInput['trangThaiThanhToan'] = undefined;
-
-    if (statusParam === 'UNPAID') {
-      statusFilter = { in: [InvoicePaymentStatus.UNPAID, InvoicePaymentStatus.OVERDUE] };
-    } else if (statusParam === 'ALL') {
-      statusFilter = undefined;
-    } else if (statusParam === 'PAID') {
-      statusFilter = InvoicePaymentStatus.PAID;
-    } else if (statusParam === 'PUBLISHED') {
-      statusFilter = InvoicePaymentStatus.PUBLISHED;
-    } else {
-      statusFilter = { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] };
-    }
-
+    const paidStatus = InvoicePaymentStatus.PAID;
     const where: Prisma.InvoiceWhereInput = {
-      kyHoaDon: { in: kyHoaDons },
-      trangThaiThanhToan: statusFilter,
+      isActive: true,
+      kyHoaDon,
+      trangThaiThanhToan: paidStatus,
       household: {
-        tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
+        tuyenThuRacId:
+          Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
+            ? Number(params.routeId)
+            : undefined,
         tuyenThuRac: {
           staffId:
             Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
@@ -821,115 +781,27 @@ export class InvoicesService {
         thue: Number(item.thue),
         tongCong: totalAmount,
         paymentDate: item.paymentDate,
-        trangThaiThanhToan: item.trangThaiThanhToan,
       };
     });
 
-    const [
-      paidAggregate,
-      unpaidAggregate,
-      soHoaDonDaPhatHanh,
-      soHoDaThuCount,
-      soHoChuaThuCount,
-    ] = await Promise.all([
-      this.prisma.invoice.aggregate({
-        where: {
-          kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
-          household: {
-            tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
-            tuyenThuRac: {
-              staffId:
-                Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
-                  ? Number(params.collectorId)
-                  : undefined,
-            },
-          },
-        },
-        _sum: {
-          tongTien: true,
-          thue: true,
-        },
-      }),
-      this.prisma.invoice.aggregate({
-        where: {
-          kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
-          household: {
-            tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
-            tuyenThuRac: {
-              staffId:
-                Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
-                  ? Number(params.collectorId)
-                  : undefined,
-            },
-          },
-        },
-        _sum: {
-          tongTien: true,
-          thue: true,
-        },
-      }),
-      this.prisma.invoice.count({
-        where: {
-          ...where,
-          invoicePublishStatus: 'SUCCESS',
-        },
-      }),
-      this.prisma.invoice.count({
-        where: {
-          kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
-          household: {
-            tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
-            tuyenThuRac: {
-              staffId:
-                Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
-                  ? Number(params.collectorId)
-                  : undefined,
-            },
-          },
-        },
-      }),
-      this.prisma.invoice.count({
-        where: {
-          kyHoaDon: { in: kyHoaDons },
-          trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
-          household: {
-            tuyenThuRacId: routeIds.length > 0 ? { in: routeIds } : undefined,
-            tuyenThuRac: {
-              staffId:
-                Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
-                  ? Number(params.collectorId)
-                  : undefined,
-            },
-          },
-        },
-      }),
-    ]);
-
-    const paidTien = Number(paidAggregate._sum.tongTien ?? 0);
-    const paidThue = Number(paidAggregate._sum.thue ?? 0);
-    const paidTong = paidTien + paidThue;
-
-    const unpaidTien = Number(unpaidAggregate._sum.tongTien ?? 0);
-    const unpaidThue = Number(unpaidAggregate._sum.thue ?? 0);
-    const unpaidTong = unpaidTien + unpaidThue;
-
-    const sum = {
-      soHoDaThu: soHoDaThuCount,
-      soHoChuaThu: soHoChuaThuCount,
-      soHoaDonDaPhatHanh,
-      tongTienDaThu: paidTien,
-      thueDaThu: paidThue,
-      tongCongDaThu: paidTong,
-      tongTienChuaThu: unpaidTien,
-      thueChuaThu: unpaidThue,
-      tongCongChuaThu: unpaidTong,
-      tongTien: paidTien + unpaidTien,
-      thue: paidThue + unpaidThue,
-      tongCong: paidTong + unpaidTong,
-    };
+    const sum = mappedRows.reduce(
+      (acc, item) => {
+        acc.tongTien += item.tongTien;
+        acc.thue += item.thue;
+        acc.tongCong += item.tongCong;
+        if (item.daPhatHanh) {
+          acc.soHoaDonDaPhatHanh += 1;
+        }
+        return acc;
+      },
+      {
+        soHoDaThu: mappedRows.length,
+        soHoaDonDaPhatHanh: 0,
+        tongTien: 0,
+        thue: 0,
+        tongCong: 0,
+      },
+    );
 
     return {
       data: mappedRows,
@@ -1007,8 +879,9 @@ export class InvoicesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where: Prisma.InvoiceWhereInput = {
+      isActive: true,
       kyHoaDon: { in: kyList },
-      trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+      trangThaiThanhToan: InvoicePaymentStatus.PAID,
       household: {
         tuyenThuRacId:
           Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
@@ -1146,7 +1019,8 @@ export class InvoicesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const where: Prisma.InvoiceWhereInput = {
-      trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+      isActive: true,
+      trangThaiThanhToan: InvoicePaymentStatus.PAID,
       paymentDate: {
         gte: from,
         lte: to,
@@ -1293,6 +1167,7 @@ export class InvoicesService {
     const skip = (normalizedPage - 1) * normalizedLimit;
 
     const householdFilter: Prisma.HouseholdWhereInput = {
+      isActive: true,
       tuyenThuRacId:
         Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
           ? Number(params.routeId)
@@ -1304,6 +1179,7 @@ export class InvoicesService {
     };
 
     const where: Prisma.InvoiceWhereInput = {
+      isActive: true,
       kyHoaDon,
       household: householdFilter,
     };
@@ -1397,7 +1273,7 @@ export class InvoicesService {
       const group = groupMap.get(key)!;
       if (item.householdId) {
         group.soHo.add(item.householdId);
-        if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID || item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED) {
+        if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
           group.soHoDaThu.add(item.householdId);
         } else {
           group.soHoChuaThu.add(item.householdId);
@@ -1408,7 +1284,7 @@ export class InvoicesService {
       group.tongThue += Number(item.thue);
       group.tongCong += totalAmount;
 
-      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID || item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED) {
+      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
         group.daThuTien += Number(item.tongTien);
         group.daThuThue += Number(item.thue);
         group.daThuCong += totalAmount;
@@ -1486,7 +1362,7 @@ export class InvoicesService {
   async updateStatus(id: number, status: InvoicePaymentStatus) {
     await this.findOne(id);
 
-    const paymentDate = (status === InvoicePaymentStatus.PAID || status === InvoicePaymentStatus.PUBLISHED) ? new Date() : null;
+    const paymentDate = status === InvoicePaymentStatus.PAID ? new Date() : null;
 
     return this.prisma.invoice.update({
       where: { id },
@@ -1561,11 +1437,11 @@ export class InvoicesService {
 
       if (alreadyPublished.length > 0) {
         for (const invoice of alreadyPublished) {
-          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PUBLISHED) {
+          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PAID) {
             await this.prisma.invoice.update({
               where: { id: invoice.id },
               data: {
-                trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
+                trangThaiThanhToan: InvoicePaymentStatus.PAID,
                 paymentDate: invoice.paymentDate ?? new Date(),
               },
             });
@@ -1653,7 +1529,7 @@ export class InvoicesService {
             publishedById: currentUser?.sub,
             publishedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
             // Nghiệp vụ hiện tại: xuất hóa đơn xong mặc định xác nhận đã thu.
-            trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
+            trangThaiThanhToan: InvoicePaymentStatus.PAID,
             paymentDate: issuedAt,
             collectedById: currentUser?.sub,
             collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
@@ -1715,7 +1591,6 @@ export class InvoicesService {
         invoiceSerial: true,
         invoicePublishStatus: true,
         invoicePublishMessage: true,
-        paymentDate: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -1777,10 +1652,8 @@ export class InvoicesService {
           data: {
             invoiceSerial: syncSerial,
             invoiceFkey: syncFkey,
-            invoicePublishStatus: 'SUCCESS',
+            invoicePublishStatus: invoice.invoicePublishStatus || 'SUCCESS',
             invoicePublishMessage: 'Đã đồng bộ seri/fkey thành công',
-            trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
-            paymentDate: invoice.paymentDate ?? new Date(),
           },
         });
 
@@ -2870,7 +2743,24 @@ export class InvoicesService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.invoice.delete({ where: { id } });
+    await this.prisma.invoice.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with id ${id} not found`);
+    }
+
+    await this.prisma.invoice.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 }

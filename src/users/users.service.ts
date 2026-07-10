@@ -103,21 +103,24 @@ export class UsersService {
     return this.toUserResponse(user);
   }
 
-  async findAll(page = 1, limit = 20) {
+  async findAll(page = 1, limit = 20, includeInactive = false) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
     const normalizedLimit = Number.isFinite(limit)
       ? Math.min(Math.max(limit, 1), 100)
       : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
+    const where = includeInactive ? undefined : { isActive: true };
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
+        where,
         skip,
         take: normalizedLimit,
         orderBy: { id: 'desc' },
         select: this.userSelect,
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     return {
@@ -132,8 +135,8 @@ export class UsersService {
   }
 
   async findOne(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    const user = await this.prisma.user.findFirst({
+      where: { id, isActive: true },
       select: this.userSelect,
     });
 
@@ -227,7 +230,24 @@ export class UsersService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 
@@ -458,7 +478,7 @@ export class UsersService {
     }
 
     const existingRoutes = await this.prisma.route.findMany({
-      where: { id: { in: routeIds } },
+      where: { id: { in: routeIds }, isActive: true },
       select: { id: true },
     });
 
@@ -468,7 +488,7 @@ export class UsersService {
   }
 
   private async ensureRoleExists(roleCode: string) {
-    const role = await this.prisma.role.findUnique({ where: { code: roleCode } });
+    const role = await this.prisma.role.findFirst({ where: { code: roleCode, isActive: true } });
     if (!role) {
       throw new BadRequestException('Quyền không tồn tại');
     }

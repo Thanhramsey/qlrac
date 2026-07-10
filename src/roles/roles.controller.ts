@@ -55,4 +55,10 @@ export class RolesController {
   remove(@Param('code') code: string) {
     return this.rolesService.remove(code);
   }
+
+  @Patch(':code/restore')
+  @Roles('ADMIN')
+  restore(@Param('code') code: string) {
+    return this.rolesService.restore(code);
+  }
 }

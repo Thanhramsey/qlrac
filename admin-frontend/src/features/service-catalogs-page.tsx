@@ -35,6 +35,7 @@ export function ServiceCatalogsPage() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(20)
   const [total, setTotal] = useState(0)
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<ServiceCatalogFormValues>()
 
@@ -43,8 +44,8 @@ export function ServiceCatalogsPage() {
     try {
       const response = await apiClient.get<PagedResponse<ServiceCatalogItem>>(
         '/service-catalogs',
-        {
-          params: { page: nextPage, limit: nextLimit },
+          {
+            params: { page: nextPage, limit: nextLimit, includeInactive },
         },
       )
       setItems(response.data.data)
@@ -60,7 +61,7 @@ export function ServiceCatalogsPage() {
 
   useEffect(() => {
     void fetchData(1, limit)
-  }, [])
+  }, [includeInactive])
 
   const openCreateModal = () => {
     setEditingItem(null)
@@ -95,6 +96,16 @@ export function ServiceCatalogsPage() {
       void fetchData(page, limit)
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Không thể xóa dịch vụ')
+    }
+  }
+
+  const handleRestore = async (id: number) => {
+    try {
+      await apiClient.patch(`/service-catalogs/${id}/restore`)
+      message.success('Khôi phục dịch vụ thành công')
+      void fetchData(page, limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không thể khôi phục dịch vụ')
     }
   }
 
@@ -170,20 +181,26 @@ export function ServiceCatalogsPage() {
         fixed: 'right' as const,
         render: (_: unknown, item: ServiceCatalogItem) => (
           <Space>
-            <Button size="small" onClick={() => openEditModal(item)}>
+            <Button size="small" onClick={() => openEditModal(item)} disabled={!item.isActive}>
               Sửa
             </Button>
-            <Popconfirm
-              title="Xóa dịch vụ"
-              description={`Bạn có chắc muốn xóa ${item.tenDichVu}?`}
-              okText="Xóa"
-              cancelText="Hủy"
-              onConfirm={() => handleDelete(item.id)}
-            >
-              <Button size="small" danger>
-                Xóa
+            {item.isActive ? (
+              <Popconfirm
+                title="Xóa dịch vụ"
+                description={`Bạn có chắc muốn xóa ${item.tenDichVu}?`}
+                okText="Xóa"
+                cancelText="Hủy"
+                onConfirm={() => handleDelete(item.id)}
+              >
+                <Button size="small" danger>
+                  Xóa
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Button size="small" onClick={() => handleRestore(item.id)}>
+                Khôi phục
               </Button>
-            </Popconfirm>
+            )}
           </Space>
         ),
       },
@@ -195,7 +212,15 @@ export function ServiceCatalogsPage() {
     <Card
       className="page-card"
       title={<Typography.Title level={5}>Danh mục dịch vụ</Typography.Title>}
-      extra={<Button type="primary" onClick={openCreateModal}>Thêm dịch vụ</Button>}
+      extra={
+        <Space>
+          <Space>
+            <span>Hiện đã xóa</span>
+            <Switch checked={includeInactive} onChange={setIncludeInactive} />
+          </Space>
+          <Button type="primary" onClick={openCreateModal}>Thêm dịch vụ</Button>
+        </Space>
+      }
     >
       <Table<ServiceCatalogItem>
         rowKey="id"

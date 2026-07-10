@@ -7,7 +7,7 @@ import { UpdateSystemParameterDto } from './dto/update-system-parameter.dto';
 export class SystemParametersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(page = 1, limit = 20, keyword?: string) {
+  async findAll(page = 1, limit = 20, keyword?: string, includeInactive = false) {
     const normalizedPage = Number.isFinite(page) && page > 0 ? page : 1;
     const normalizedLimit = Number.isFinite(limit)
       ? Math.min(Math.max(limit, 1), 100)
@@ -16,12 +16,15 @@ export class SystemParametersService {
 
     const where = keyword?.trim()
       ? {
+          ...(includeInactive ? {} : { isActive: true }),
           tenThamSo: {
             contains: keyword.trim(),
             mode: 'insensitive' as const,
           },
         }
-      : undefined;
+      : includeInactive
+        ? undefined
+        : { isActive: true };
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.systemParameter.findMany({
@@ -45,7 +48,7 @@ export class SystemParametersService {
   }
 
   async findOne(id: number) {
-    const item = await this.prisma.systemParameter.findUnique({ where: { id } });
+    const item = await this.prisma.systemParameter.findFirst({ where: { id, isActive: true } });
     if (!item) {
       throw new NotFoundException('Tham số hệ thống không tồn tại');
     }
@@ -86,7 +89,24 @@ export class SystemParametersService {
 
   async remove(id: number) {
     await this.findOne(id);
-    await this.prisma.systemParameter.delete({ where: { id } });
+    await this.prisma.systemParameter.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { id };
+  }
+
+  async restore(id: number) {
+    const item = await this.prisma.systemParameter.findUnique({ where: { id } });
+    if (!item) {
+      throw new NotFoundException('Tham số hệ thống không tồn tại');
+    }
+
+    await this.prisma.systemParameter.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
     return { id };
   }
 }

@@ -36,6 +36,7 @@ export class HouseholdsController {
     @Query('tuyenThuRacId') tuyenThuRacId?: string,
     @Query('tenChuHo') tenChuHo?: string,
     @Query('diaChi') diaChi?: string,
+    @Query('includeInactive') includeInactive = 'false',
   ) {
     return this.householdsService.findAll(
       Number(page),
@@ -44,6 +45,7 @@ export class HouseholdsController {
       tuyenThuRacId ? Number(tuyenThuRacId) : undefined,
       tenChuHo,
       diaChi,
+      includeInactive === 'true',
     );
   }
 
@@ -76,5 +78,11 @@ export class HouseholdsController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.householdsService.remove(id);
+  }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.householdsService.restore(id);
   }
 }

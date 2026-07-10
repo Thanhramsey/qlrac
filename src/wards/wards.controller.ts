@@ -58,4 +58,10 @@ export class WardsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.wardsService.remove(id);
   }
+
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.wardsService.restore(id);
+  }
 }

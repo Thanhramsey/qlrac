@@ -71,6 +71,12 @@ export class MenusController {
     return this.menusService.remove(id);
   }
 
+  @Patch(':id/restore')
+  @Roles('ADMIN')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.menusService.restore(id);
+  }
+
   @Get('role/:roleCode')
   @Roles('ADMIN', 'ADMIN_LEVEL_2')
   getRoleMenus(@Param('roleCode') roleCode: string) {

@@ -35,6 +35,7 @@ export function BillingPeriodsPage() {
   const [saving, setSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<BillingPeriodItem | null>(null)
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 })
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<BillingPeriodFormValues>()
 
@@ -42,7 +43,7 @@ export function BillingPeriodsPage() {
     setLoading(true)
     try {
       const response = await apiClient.get<PagedResponse<BillingPeriodItem>>('/billing-periods', {
-        params: { page, limit },
+        params: { page, limit, includeInactive },
       })
       setListData(response.data.data)
       setPagination({
@@ -69,7 +70,7 @@ export function BillingPeriodsPage() {
   useEffect(() => {
     void fetchBillingPeriods(1, 10)
     void fetchConfig()
-  }, [])
+  }, [includeInactive])
 
   const openCreateModal = () => {
     setEditingItem(null)
@@ -143,6 +144,16 @@ export function BillingPeriodsPage() {
     }
   }
 
+  const onRestore = async (id: number) => {
+    try {
+      await apiClient.patch(`/billing-periods/${id}/restore`)
+      message.success('Khôi phục kỳ hóa đơn thành công')
+      void fetchBillingPeriods(pagination.page, pagination.limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Khôi phục kỳ hóa đơn thất bại')
+    }
+  }
+
   const onToggleAutoCreate = async (enabled: boolean) => {
     try {
       setSavingConfig(true)
@@ -174,6 +185,10 @@ export function BillingPeriodsPage() {
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <h3 style={{ margin: 0 }}>Quản lý kỳ hóa đơn</h3>
           <Space>
+            <Space>
+              <span>Hiện đã xóa</span>
+              <Switch checked={includeInactive} onChange={setIncludeInactive} />
+            </Space>
             <Space>
               <span>Tự động tạo kỳ theo tháng</span>
               <Switch
@@ -237,16 +252,27 @@ export function BillingPeriodsPage() {
               width: 140,
               render: (_, record) => (
                 <Space>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
-                  <Popconfirm
-                    title="Xóa kỳ hóa đơn"
-                    description="Bạn chắc chắn muốn xóa kỳ này?"
-                    okText="Xóa"
-                    cancelText="Hủy"
-                    onConfirm={() => void onDelete(record.id)}
-                  >
-                    <Button danger size="small" icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => openEditModal(record)}
+                    disabled={!record.isActive}
+                  />
+                  {record.isActive ? (
+                    <Popconfirm
+                      title="Xóa kỳ hóa đơn"
+                      description="Bạn chắc chắn muốn xóa kỳ này?"
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      onConfirm={() => void onDelete(record.id)}
+                    >
+                      <Button danger size="small" icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  ) : (
+                    <Button size="small" onClick={() => void onRestore(record.id)}>
+                      Khôi phục
+                    </Button>
+                  )}
                 </Space>
               ),
             },

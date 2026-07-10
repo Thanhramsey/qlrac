@@ -65,6 +65,7 @@ export function HouseholdsPage() {
     total: 0,
   })
   const [searchValues, setSearchValues] = useState<HouseholdSearchValues>({})
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<HouseholdFormValues>()
   const [searchForm] = Form.useForm<HouseholdSearchValues>()
@@ -104,6 +105,7 @@ export function HouseholdsPage() {
           tuyenThuRacId: filters.tuyenThuRacId,
           tenChuHo: filters.tenChuHo?.trim() || undefined,
           diaChi: filters.diaChi?.trim() || undefined,
+          includeInactive,
         },
       })
       setListData(response.data.data)
@@ -137,7 +139,7 @@ export function HouseholdsPage() {
     void fetchHouseholds(1, 10, {})
     void fetchRoutes()
     void fetchServices()
-  }, [])
+  }, [includeInactive])
 
   const onSearch = async () => {
     const values = searchForm.getFieldsValue()
@@ -235,6 +237,16 @@ export function HouseholdsPage() {
     }
   }
 
+  const onRestore = async (id: number) => {
+    try {
+      await apiClient.patch(`/households/${id}/restore`)
+      message.success('Khôi phục hộ dân thành công')
+      void fetchHouseholds(pagination.page, pagination.limit, searchValues)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Khôi phục hộ dân thất bại')
+    }
+  }
+
   const downloadHouseholdTemplate = () => {
     const importRows = [
       {
@@ -284,6 +296,16 @@ export function HouseholdsPage() {
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <h3 style={{ margin: 0 }}>Quản lý hộ dân</h3>
           <Space>
+            <Space>
+              <span>Hiện đã xóa</span>
+              <Switch
+                checked={includeInactive}
+                onChange={(value) => {
+                  setIncludeInactive(value)
+                  setPagination((prev) => ({ ...prev, page: 1 }))
+                }}
+              />
+            </Space>
             <Button
               className="excel-green-btn"
               icon={<UploadOutlined />}
@@ -426,16 +448,27 @@ export function HouseholdsPage() {
               fixed: 'right',
               render: (_, record) => (
                 <Space>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
-                  <Popconfirm
-                    title="Xóa hộ dân"
-                    description="Bạn chắc chắn muốn xóa hộ dân này?"
-                    okText="Xóa"
-                    cancelText="Hủy"
-                    onConfirm={() => void onDelete(record.id)}
-                  >
-                    <Button danger size="small" icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => openEditModal(record)}
+                    disabled={!record.isActive}
+                  />
+                  {record.isActive ? (
+                    <Popconfirm
+                      title="Xóa hộ dân"
+                      description="Bạn chắc chắn muốn xóa hộ dân này?"
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      onConfirm={() => void onDelete(record.id)}
+                    >
+                      <Button danger size="small" icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  ) : (
+                    <Button size="small" onClick={() => void onRestore(record.id)}>
+                      Khôi phục
+                    </Button>
+                  )}
                 </Space>
               ),
             },

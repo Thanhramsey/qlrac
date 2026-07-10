@@ -7,6 +7,7 @@ import {
   Modal,
   Popconfirm,
   Select,
+  Switch,
   Space,
   Table,
   Tag,
@@ -70,6 +71,7 @@ export function UsersPage({ roles }: UsersPageProps) {
     total: 0,
   })
   const [routeOptions, setRouteOptions] = useState<RouteItem[]>([])
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   const roleLabelMap = useMemo(
     () => Object.fromEntries(roles.map((item) => [item.code, item.label])),
@@ -80,7 +82,7 @@ export function UsersPage({ roles }: UsersPageProps) {
     setLoading(true)
     try {
       const response = await apiClient.get<UserListResponse>('/users', {
-        params: { page, limit },
+        params: { page, limit, includeInactive },
       })
       setListData(response.data.data)
       setPagination({
@@ -100,7 +102,7 @@ export function UsersPage({ roles }: UsersPageProps) {
   useEffect(() => {
     void fetchUsers(1, 10)
     void fetchRoutes()
-  }, [])
+  }, [includeInactive])
 
   const fetchRoutes = async () => {
     try {
@@ -260,6 +262,16 @@ export function UsersPage({ roles }: UsersPageProps) {
     }
   }
 
+  const onRestoreUser = async (id: number) => {
+    try {
+      await apiClient.patch(`/users/${id}/restore`)
+      message.success('Khôi phục người dùng thành công')
+      void fetchUsers(pagination.page, pagination.limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Khôi phục người dùng thất bại')
+    }
+  }
+
   return (
     <Card className="page-card" variant="borderless">
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -268,6 +280,16 @@ export function UsersPage({ roles }: UsersPageProps) {
             Danh sách người dùng
           </Typography.Title>
           <Space>
+            <Space>
+              <span>Hiện đã xóa</span>
+              <Switch
+                checked={includeInactive}
+                onChange={(value) => {
+                  setIncludeInactive(value)
+                  setPagination((prev) => ({ ...prev, page: 1 }))
+                }}
+              />
+            </Space>
             <Upload
               accept=".xlsx,.xls,.csv"
               showUploadList={false}
@@ -383,16 +405,23 @@ export function UsersPage({ roles }: UsersPageProps) {
                     size="small"
                     icon={<EditOutlined />}
                     onClick={() => openEditModal(record)}
+                    disabled={!record.isActive}
                   />
-                  <Popconfirm
-                    title="Xóa người dùng"
-                    description="Bạn chắc chắn muốn xóa người dùng này?"
-                    okText="Xóa"
-                    cancelText="Hủy"
-                    onConfirm={() => void onDeleteUser(record.id)}
-                  >
-                    <Button danger size="small" icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  {record.isActive ? (
+                    <Popconfirm
+                      title="Xóa người dùng"
+                      description="Bạn chắc chắn muốn xóa người dùng này?"
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      onConfirm={() => void onDeleteUser(record.id)}
+                    >
+                      <Button danger size="small" icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  ) : (
+                    <Button size="small" onClick={() => void onRestoreUser(record.id)}>
+                      Khôi phục
+                    </Button>
+                  )}
                 </Space>
               ),
             },

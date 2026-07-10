@@ -6,58 +6,86 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Request } from 'express';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { RolesService } from './roles.service';
+import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 
 @Controller('roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_READ)
   findAll() {
     return this.rolesService.findAll();
   }
 
   @Get('user-permissions')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_READ)
   getUserPermissionPlaceholder() {
     return this.rolesService.getUserPermissionPlaceholder();
   }
 
+  @Get('permissions')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_READ)
+  listPermissions() {
+    return this.rolesService.listPermissions();
+  }
+
+  @Get(':code/permissions')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_READ)
+  getRolePermissions(@Param('code') code: string) {
+    return this.rolesService.getRolePermissions(code);
+  }
+
+  @Put(':code/permissions')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_PERMISSION_MANAGE)
+  updateRolePermissions(
+    @Req() req: Request & { user?: JwtPayload },
+    @Param('code') code: string,
+    @Body() dto: UpdateRolePermissionsDto,
+  ) {
+    return this.rolesService.updateRolePermissions(code, dto.permissionCodes, req.user);
+  }
+
   @Get(':code')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_READ)
   findOne(@Param('code') code: string) {
     return this.rolesService.findOne(code);
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_MANAGE)
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
   }
 
   @Patch(':code')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_MANAGE)
   update(@Param('code') code: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(code, updateRoleDto);
   }
 
   @Delete(':code')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_MANAGE)
   remove(@Param('code') code: string) {
     return this.rolesService.remove(code);
   }
 
   @Patch(':code/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.ROLES_MANAGE)
   restore(@Param('code') code: string) {
     return this.rolesService.restore(code);
   }

@@ -215,6 +215,19 @@ export interface RoleMenuResponse {
   menuIds: number[]
 }
 
+export interface PermissionItem {
+  code: string
+  label: string
+  moduleKey: string
+  moTa?: string | null
+  isActive: boolean
+}
+
+export interface RolePermissionResponse {
+  roleCode: string
+  permissionCodes: string[]
+}
+
 export interface BillingPeriodItem {
   id: number
   maKy: string

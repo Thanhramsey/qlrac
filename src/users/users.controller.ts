@@ -19,9 +19,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import type { Request } from 'express';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -30,7 +31,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -74,7 +75,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.USERS_READ)
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
@@ -88,19 +89,19 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.USERS_READ)
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.USERS_MANAGE)
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   @Post('import')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.USERS_IMPORT)
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   importFromExcel(@UploadedFile() file?: Express.Multer.File) {
@@ -108,7 +109,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.USERS_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
@@ -117,13 +118,13 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.USERS_MANAGE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.USERS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.restore(id);
   }

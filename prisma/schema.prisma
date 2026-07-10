@@ -236,6 +236,7 @@ model Role {
 
   users               User[]
   roleMenuPermissions RoleMenuPermission[]
+  rolePermissions     RolePermission[]
 
   @@map("roles")
 }
@@ -340,4 +341,33 @@ model SystemParameter {
   @@index([tenThamSo])
   @@index([isActive])
   @@map("system_parameters")
+}
+
+model Permission {
+  code      String   @id @map("code")
+  label     String   @map("label")
+  moduleKey String   @map("module_key")
+  moTa      String?  @map("mo_ta")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+
+  @@index([moduleKey])
+  @@index([isActive])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleCode       String   @map("role_code")
+  permissionCode String   @map("permission_code")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  role       Role       @relation(fields: [roleCode], references: [code])
+  permission Permission @relation(fields: [permissionCode], references: [code])
+
+  @@id([roleCode, permissionCode])
+  @@index([permissionCode])
+  @@map("role_permissions")
 }

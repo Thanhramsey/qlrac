@@ -10,16 +10,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateWardDto } from './dto/create-ward.dto';
 import { UpdateWardDto } from './dto/update-ward.dto';
 import { WardsService } from './wards.service';
 
 @Controller('wards')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.LOCATIONS_READ)
 export class WardsController {
   constructor(private readonly wardsService: WardsService) {}
 
@@ -42,25 +43,25 @@ export class WardsController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   create(@Body() createWardDto: CreateWardDto) {
     return this.wardsService.create(createWardDto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   update(@Param('id', ParseIntPipe) id: number, @Body() updateWardDto: UpdateWardDto) {
     return this.wardsService.update(id, updateWardDto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.wardsService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.wardsService.restore(id);
   }

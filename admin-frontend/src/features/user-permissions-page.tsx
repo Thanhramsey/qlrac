@@ -3,6 +3,7 @@ import {
   Card,
   Checkbox,
   Col,
+  Divider,
   Empty,
   Form,
   Input,
@@ -14,13 +15,20 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   Typography,
   message,
 } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../api/axios.instance'
-import type { MenuItemNode, RoleMenuResponse, RoleOption } from '../types'
+import type {
+  MenuItemNode,
+  PermissionItem,
+  RoleMenuResponse,
+  RoleOption,
+  RolePermissionResponse,
+} from '../types'
 
 interface UserPermissionsPageProps {
   roles: RoleOption[]
@@ -71,11 +79,18 @@ function buildDescendantIds(menuId: number, allMenus: MenuItemNode[]) {
 
 export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
   const [menus, setMenus] = useState<MenuItemNode[]>([])
+  const [permissions, setPermissions] = useState<PermissionItem[]>([])
   const [loadingMenus, setLoadingMenus] = useState(false)
+  const [loadingPermissions, setLoadingPermissions] = useState(false)
   const [loadingRoles, setLoadingRoles] = useState(false)
+  const [loadingRolePermissions, setLoadingRolePermissions] = useState(false)
   const [savingPermissions, setSavingPermissions] = useState(false)
+  const [savingApiPermissions, setSavingApiPermissions] = useState(false)
   const [selectedRoleCode, setSelectedRoleCode] = useState<string | null>(null)
   const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([])
+  const [selectedPermissionCodes, setSelectedPermissionCodes] = useState<string[]>([])
+  const [permissionKeyword, setPermissionKeyword] = useState('')
+  const [safeMode, setSafeMode] = useState(true)
   const [menuModalOpen, setMenuModalOpen] = useState(false)
   const [editingMenu, setEditingMenu] = useState<MenuItemNode | null>(null)
   const [savingMenu, setSavingMenu] = useState(false)
@@ -106,14 +121,40 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
     }
   }
 
+  const loadPermissions = async () => {
+    setLoadingPermissions(true)
+    try {
+      const response = await apiClient.get<PermissionItem[]>('/roles/permissions')
+      setPermissions(response.data)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không tải được danh sách quyền API')
+    } finally {
+      setLoadingPermissions(false)
+    }
+  }
+
+  const loadRoleApiPermissions = async (roleCode: string) => {
+    setLoadingRolePermissions(true)
+    try {
+      const response = await apiClient.get<RolePermissionResponse>(`/roles/${roleCode}/permissions`)
+      setSelectedPermissionCodes(response.data.permissionCodes)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không tải được quyền API của role')
+    } finally {
+      setLoadingRolePermissions(false)
+    }
+  }
+
   useEffect(() => {
     void loadMenus()
+    void loadPermissions()
   }, [])
 
   useEffect(() => {
     if (roles.length > 0 && !selectedRoleCode) {
       setSelectedRoleCode(roles[0].code)
       void loadRoleMenus(roles[0].code)
+      void loadRoleApiPermissions(roles[0].code)
     }
   }, [roles, selectedRoleCode])
 
@@ -241,6 +282,146 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
     }
   }
 
+  const permissionsByModule = useMemo(() => {
+    const keyword = permissionKeyword.trim().toLowerCase()
+    const grouped = new Map<string, PermissionItem[]>()
+
+    for (const permission of permissions) {
+      if (keyword) {
+        const haystack = `${permission.code} ${permission.label} ${permission.moTa ?? ''} ${permission.moduleKey}`
+          .toLowerCase()
+          .trim()
+
+        if (!haystack.includes(keyword)) {
+          continue
+        }
+      }
+
+      const moduleKey = permission.moduleKey || 'other'
+      const current = grouped.get(moduleKey) ?? []
+      current.push(permission)
+      grouped.set(moduleKey, current)
+    }
+
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([moduleKey, items]) => ({
+        moduleKey,
+        items: [...items].sort((a, b) => a.code.localeCompare(b.code)),
+      }))
+  }, [permissions, permissionKeyword])
+
+  const selectedPermissionSet = useMemo(
+    () => new Set(selectedPermissionCodes),
+    [selectedPermissionCodes],
+  )
+
+  const isDangerousPermission = (code: string) =>
+    code.endsWith('.delete') || code.endsWith('.restore')
+
+  const isPermissionLocked = (permission: PermissionItem) =>
+    safeMode && isDangerousPermission(permission.code)
+
+  const toggleApiPermission = (permissionCode: string, checked: boolean) => {
+    if (checked && safeMode && isDangerousPermission(permissionCode)) {
+      return
+    }
+
+    const next = new Set(selectedPermissionCodes)
+    if (checked) {
+      next.add(permissionCode)
+    } else {
+      next.delete(permissionCode)
+    }
+    setSelectedPermissionCodes(Array.from(next))
+  }
+
+  const toggleModulePermissions = (moduleKey: string, checked: boolean) => {
+    const modulePermissions = permissionsByModule.find((item) => item.moduleKey === moduleKey)
+    if (!modulePermissions) {
+      return
+    }
+
+    const next = new Set(selectedPermissionCodes)
+    for (const permission of modulePermissions.items) {
+      if (safeMode && isDangerousPermission(permission.code)) {
+        continue
+      }
+
+      if (checked) {
+        next.add(permission.code)
+      } else {
+        next.delete(permission.code)
+      }
+    }
+    setSelectedPermissionCodes(Array.from(next))
+  }
+
+  const selectAllApiPermissions = () => {
+    const next = new Set(selectedPermissionCodes)
+
+    for (const group of permissionsByModule) {
+      for (const permission of group.items) {
+        if (safeMode && isDangerousPermission(permission.code)) {
+          continue
+        }
+        next.add(permission.code)
+      }
+    }
+
+    setSelectedPermissionCodes(Array.from(next))
+  }
+
+  const clearAllApiPermissions = () => {
+    setSelectedPermissionCodes([])
+  }
+
+  const saveRoleApiPermissions = async () => {
+    if (!selectedRoleCode) {
+      message.warning('Vui lòng chọn role')
+      return
+    }
+
+    setSavingApiPermissions(true)
+    try {
+      await apiClient.put(`/roles/${selectedRoleCode}/permissions`, {
+        permissionCodes: selectedPermissionCodes,
+      })
+      message.success('Lưu quyền API thành công')
+      await loadRoleApiPermissions(selectedRoleCode)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Không lưu được quyền API')
+    } finally {
+      setSavingApiPermissions(false)
+    }
+  }
+
+  const moduleStats = (moduleKey: string, moduleItems: PermissionItem[]) => {
+    const selectableItems = moduleItems.filter((item) =>
+      safeMode ? !isDangerousPermission(item.code) : true,
+    )
+    const total = selectableItems.length
+    const checkedCount = selectableItems.filter((item) => selectedPermissionSet.has(item.code)).length
+
+    return {
+      total,
+      checkedCount,
+      checkedAll: total > 0 && checkedCount === total,
+      indeterminate: checkedCount > 0 && checkedCount < total,
+      moduleKey,
+    }
+  }
+
+  useEffect(() => {
+    if (!safeMode) {
+      return
+    }
+
+    setSelectedPermissionCodes((current) =>
+      current.filter((code) => !isDangerousPermission(code)),
+    )
+  }, [safeMode])
+
   return (
     <Card className="page-card" variant="borderless">
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -259,7 +440,7 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
                 </Space>
               }
               size="small"
-              loading={loadingRoles}
+              loading={loadingRoles || loadingRolePermissions}
             >
               <Table<RoleOption>
                 className="permission-table role-table"
@@ -274,6 +455,7 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
                   onClick: () => {
                     setSelectedRoleCode(record.code)
                     void loadRoleMenus(record.code)
+                    void loadRoleApiPermissions(record.code)
                   },
                 })}
                 columns={[
@@ -298,91 +480,230 @@ export function UserPermissionsPage({ roles }: UserPermissionsPageProps) {
                 </Space>
               }
               size="small"
-              loading={loadingMenus}
-              extra={
-                <Space>
-                  <Button onClick={openCreateMenu}>Thêm menu</Button>
-                  <Button type="primary" onClick={saveRolePermissions} loading={savingPermissions}>
-                    Lưu phân quyền
-                  </Button>
-                </Space>
-              }
+              loading={loadingMenus || loadingPermissions}
             >
-              {menus.length === 0 ? (
-                <Empty description="Chưa có menu" />
-              ) : (
-                <Table<MenuItemNode>
-                  className="permission-table menu-table"
-                  rowKey="id"
-                  dataSource={menus}
-                  size="small"
-                  pagination={false}
-                  expandable={{
-                    defaultExpandAllRows: true,
-                  }}
-                  columns={[
-                    {
-                      title: 'Gán',
-                      width: 70,
-                      render: (_, record) => (
-                        <Checkbox
-                          checked={selectedMenuIds.includes(record.id)}
-                          onChange={(event) => toggleMenu(record, event.target.checked)}
-                        />
-                      ),
-                    },
-                    {
-                      title: 'Tên menu',
-                      dataIndex: 'tenMenu',
-                    },
-                    {
-                      title: 'Key',
-                      dataIndex: 'menuKey',
-                    },
-                    {
-                      title: 'Route',
-                      dataIndex: 'routePath',
-                      render: (value: string | null | undefined) => value || '-',
-                    },
-                    {
-                      title: 'Mobile',
-                      dataIndex: 'viewMobile',
-                      width: 120,
-                      render: (value: boolean) =>
-                        value ? <Tag color="green">Hiện mobile</Tag> : <Tag>Ẩn mobile</Tag>,
-                    },
-                    {
-                      title: 'Trạng thái',
-                      dataIndex: 'isActive',
-                      width: 120,
-                      render: (value: boolean) =>
-                        value ? <Tag color="green">Hoạt động</Tag> : <Tag>Khóa</Tag>,
-                    },
-                    {
-                      title: 'Thao tác',
-                      width: 140,
-                      render: (_, record) => (
-                        <Space>
-                          <Button size="small" onClick={() => openEditMenu(record)}>
-                            Sửa
-                          </Button>
-                          <Popconfirm
-                            title="Xóa menu"
-                            description="Bạn chắc chắn muốn xóa menu này?"
-                            okText="Xóa"
-                            cancelText="Hủy"
-                            onConfirm={() => onDeleteMenu(record.id)}
-                          >
-                            <Button size="small" danger>
-                              Xóa
+              <Tabs
+                defaultActiveKey="menu"
+                items={[
+                  {
+                    key: 'menu',
+                    label: 'Quyền Menu',
+                    children: (
+                      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                        <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+                          <Typography.Text strong>Tick checkbox để gán menu cho role</Typography.Text>
+                          <Space>
+                            <Button onClick={openCreateMenu}>Thêm menu</Button>
+                            <Button
+                              type="primary"
+                              onClick={saveRolePermissions}
+                              loading={savingPermissions}
+                            >
+                              Lưu quyền menu
                             </Button>
-                          </Popconfirm>
+                          </Space>
                         </Space>
-                      ),
-                    },
-                  ]}
-                />
-              )}
+
+                        {menus.length === 0 ? (
+                          <Empty description="Chưa có menu" />
+                        ) : (
+                          <Table<MenuItemNode>
+                            className="permission-table menu-table"
+                            rowKey="id"
+                            dataSource={menus}
+                            size="small"
+                            pagination={false}
+                            expandable={{
+                              defaultExpandAllRows: true,
+                            }}
+                            columns={[
+                              {
+                                title: 'Gán',
+                                width: 70,
+                                render: (_, record) => (
+                                  <Checkbox
+                                    checked={selectedMenuIds.includes(record.id)}
+                                    onChange={(event) => toggleMenu(record, event.target.checked)}
+                                  />
+                                ),
+                              },
+                              {
+                                title: 'Tên menu',
+                                dataIndex: 'tenMenu',
+                              },
+                              {
+                                title: 'Key',
+                                dataIndex: 'menuKey',
+                              },
+                              {
+                                title: 'Route',
+                                dataIndex: 'routePath',
+                                render: (value: string | null | undefined) => value || '-',
+                              },
+                              {
+                                title: 'Mobile',
+                                dataIndex: 'viewMobile',
+                                width: 120,
+                                render: (value: boolean) =>
+                                  value ? <Tag color="green">Hiện mobile</Tag> : <Tag>Ẩn mobile</Tag>,
+                              },
+                              {
+                                title: 'Trạng thái',
+                                dataIndex: 'isActive',
+                                width: 120,
+                                render: (value: boolean) =>
+                                  value ? <Tag color="green">Hoạt động</Tag> : <Tag>Khóa</Tag>,
+                              },
+                              {
+                                title: 'Thao tác',
+                                width: 140,
+                                render: (_, record) => (
+                                  <Space>
+                                    <Button size="small" onClick={() => openEditMenu(record)}>
+                                      Sửa
+                                    </Button>
+                                    <Popconfirm
+                                      title="Xóa menu"
+                                      description="Bạn chắc chắn muốn xóa menu này?"
+                                      okText="Xóa"
+                                      cancelText="Hủy"
+                                      onConfirm={() => onDeleteMenu(record.id)}
+                                    >
+                                      <Button size="small" danger>
+                                        Xóa
+                                      </Button>
+                                    </Popconfirm>
+                                  </Space>
+                                ),
+                              },
+                            ]}
+                          />
+                        )}
+                      </Space>
+                    ),
+                  },
+                  {
+                    key: 'api',
+                    label: 'Quyền API',
+                    children: (
+                      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                        <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+                          <Typography.Text strong>
+                            Gán quyền API theo module cho role đang chọn
+                          </Typography.Text>
+                          <Button
+                            type="primary"
+                            onClick={saveRoleApiPermissions}
+                            loading={savingApiPermissions}
+                          >
+                            Lưu quyền API
+                          </Button>
+                        </Space>
+
+                        <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <Input
+                            allowClear
+                            value={permissionKeyword}
+                            onChange={(event) => setPermissionKeyword(event.target.value)}
+                            placeholder="Tìm theo mã quyền hoặc tên quyền"
+                            style={{ minWidth: 280 }}
+                          />
+
+                          <Space wrap>
+                            <Typography.Text>Chế độ an toàn</Typography.Text>
+                            <Switch
+                              checked={safeMode}
+                              onChange={setSafeMode}
+                              checkedChildren="Bật"
+                              unCheckedChildren="Tắt"
+                            />
+                            <Button onClick={selectAllApiPermissions}>Chọn tất cả toàn hệ thống</Button>
+                            <Button onClick={clearAllApiPermissions}>Bỏ chọn tất cả</Button>
+                          </Space>
+                        </Space>
+
+                        {safeMode ? (
+                          <Typography.Text type="secondary">
+                            Chế độ an toàn đang bật: quyền có hậu tố .delete và .restore sẽ bị khóa để tránh cấp nhầm.
+                          </Typography.Text>
+                        ) : null}
+
+                        {permissionsByModule.length === 0 ? (
+                          <Empty description="Chưa có quyền API" />
+                        ) : (
+                          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                            {permissionsByModule.map((group) => {
+                              const stats = moduleStats(group.moduleKey, group.items)
+
+                              return (
+                                <Card key={group.moduleKey} size="small" className="permission-card">
+                                  <Space
+                                    style={{ width: '100%', justifyContent: 'space-between' }}
+                                    align="start"
+                                  >
+                                    <Space direction="vertical" size={0}>
+                                      <Typography.Text strong>
+                                        Module: {group.moduleKey}
+                                      </Typography.Text>
+                                      <Typography.Text type="secondary">
+                                        Đã chọn {stats.checkedCount}/{stats.total} quyền
+                                      </Typography.Text>
+                                    </Space>
+
+                                    <Checkbox
+                                      checked={stats.checkedAll}
+                                      indeterminate={stats.indeterminate}
+                                      disabled={stats.total === 0}
+                                      onChange={(event) =>
+                                        toggleModulePermissions(group.moduleKey, event.target.checked)
+                                      }
+                                    >
+                                      Chọn tất cả module
+                                    </Checkbox>
+                                  </Space>
+
+                                  <Divider style={{ margin: '12px 0' }} />
+
+                                  <Row gutter={[12, 12]}>
+                                    {group.items.map((permission) => (
+                                      <Col key={permission.code} xs={24} md={12}>
+                                        <Checkbox
+                                          checked={selectedPermissionSet.has(permission.code)}
+                                          disabled={isPermissionLocked(permission)}
+                                          onChange={(event) =>
+                                            toggleApiPermission(permission.code, event.target.checked)
+                                          }
+                                        >
+                                          <Space direction="vertical" size={0}>
+                                            <Typography.Text strong>{permission.label}</Typography.Text>
+                                            <Typography.Text type="secondary">
+                                              {permission.code}
+                                            </Typography.Text>
+                                            {isDangerousPermission(permission.code) ? (
+                                              <Tag color={safeMode ? 'orange' : 'red'}>
+                                                {safeMode ? 'Nhạy cảm (đang khóa)' : 'Nhạy cảm'}
+                                              </Tag>
+                                            ) : null}
+                                            {permission.moTa ? (
+                                              <Typography.Text type="secondary">
+                                                {permission.moTa}
+                                              </Typography.Text>
+                                            ) : null}
+                                          </Space>
+                                        </Checkbox>
+                                      </Col>
+                                    ))}
+                                  </Row>
+                                </Card>
+                              )
+                            })}
+                          </Space>
+                        )}
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
             </Card>
           </Col>
         </Row>

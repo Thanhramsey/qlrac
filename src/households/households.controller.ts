@@ -15,16 +15,17 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { HouseholdsService } from './households.service';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 
 @Controller('households')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2', 'STAFF')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_READ)
 export class HouseholdsController {
   constructor(private readonly householdsService: HouseholdsService) {}
 
@@ -55,12 +56,13 @@ export class HouseholdsController {
   }
 
   @Post()
+  @RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_MANAGE)
   create(@Body() createHouseholdDto: CreateHouseholdDto) {
     return this.householdsService.create(createHouseholdDto);
   }
 
   @Post('import')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_IMPORT)
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   importFromExcel(@UploadedFile() file?: Express.Multer.File) {
@@ -68,6 +70,7 @@ export class HouseholdsController {
   }
 
   @Patch(':id')
+  @RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateHouseholdDto: UpdateHouseholdDto,
@@ -76,12 +79,13 @@ export class HouseholdsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_MANAGE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.householdsService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.HOUSEHOLDS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.householdsService.restore(id);
   }

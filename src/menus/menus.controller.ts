@@ -13,9 +13,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
@@ -23,7 +24,7 @@ import { UpdateRoleMenusDto } from './dto/update-role-menus.dto';
 import { MenusService } from './menus.service';
 
 @Controller('menus')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}
 
@@ -42,49 +43,49 @@ export class MenusController {
   }
 
   @Get()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_READ)
   findAll() {
     return this.menusService.findAll();
   }
 
   @Get('tree')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_READ)
   findTree() {
     return this.menusService.findTree();
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_MANAGE)
   create(@Body() createMenuDto: CreateMenuDto) {
     return this.menusService.create(createMenuDto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_MANAGE)
   update(@Param('id', ParseIntPipe) id: number, @Body() updateMenuDto: UpdateMenuDto) {
     return this.menusService.update(id, updateMenuDto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_MANAGE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.menusService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_MANAGE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.menusService.restore(id);
   }
 
   @Get('role/:roleCode')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_ASSIGN)
   getRoleMenus(@Param('roleCode') roleCode: string) {
     return this.menusService.getRoleMenuIds(roleCode);
   }
 
   @Put('role/:roleCode')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.MENUS_ASSIGN)
   updateRoleMenus(
     @Param('roleCode') roleCode: string,
     @Body() updateRoleMenusDto: UpdateRoleMenusDto,

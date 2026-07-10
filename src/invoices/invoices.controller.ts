@@ -20,17 +20,18 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { InvoicePaymentStatus } from '@prisma/client';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.INVOICES_READ)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
@@ -150,6 +151,7 @@ export class InvoicesController {
   }
 
   @Get('reports/detail-by-period')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_REPORT)
   getDetailReportByPeriod(
     @Query('kyHoaDon') kyHoaDon?: string,
     @Query('collectorId') collectorId?: string,
@@ -167,6 +169,7 @@ export class InvoicesController {
   }
 
   @Get('reports/detail-by-period-range')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_REPORT)
   getDetailReportByPeriodRange(
     @Query('fromKy') fromKy?: string,
     @Query('toKy') toKy?: string,
@@ -186,6 +189,7 @@ export class InvoicesController {
   }
 
   @Get('reports/detail-by-date')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_REPORT)
   getDetailReportByDate(
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
@@ -205,6 +209,7 @@ export class InvoicesController {
   }
 
   @Get('reports/revenue-summary')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_REPORT)
   getRevenueSummaryReport(
     @Query('kyHoaDon') kyHoaDon?: string,
     @Query('routeId') routeId?: string,
@@ -222,12 +227,13 @@ export class InvoicesController {
   }
 
   @Post('generate-from-period/:maKy')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_MANAGE)
   generateFromPeriod(@Param('maKy') maKy: string) {
     return this.invoicesService.generateForPeriod(maKy);
   }
 
   @Post('publish')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_PUBLISH)
   @HttpCode(HttpStatus.OK)
   publishInvoices(
     @Req() req: Request & { user?: JwtPayload },
@@ -259,7 +265,7 @@ export class InvoicesController {
   }
 
   @Post('sync-metadata')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_MANAGE)
   @HttpCode(HttpStatus.OK)
   syncPublishMetadata(@Body('invoiceIds') invoiceIdsRaw?: number[] | string) {
     let parsedIds: number[] = [];
@@ -288,18 +294,20 @@ export class InvoicesController {
   }
 
   @Post(':id/replace')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_MANAGE)
   @HttpCode(HttpStatus.OK)
   replaceInvoice(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.replaceInvoice(id);
   }
 
   @Get(':id/download-vnpt')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_PUBLISH)
   downloadInvoiceVnpt(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.downloadInvoice(id);
   }
 
   @Post('collect')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_COLLECT)
   @UseInterceptors(
     FileInterceptor('receiptImage', {
       storage: diskStorage({
@@ -350,13 +358,13 @@ export class InvoicesController {
   }
 
   @Post()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_MANAGE)
   create(@Body() createInvoiceDto: CreateInvoiceDto) {
     return this.invoicesService.create(createInvoiceDto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
@@ -365,6 +373,7 @@ export class InvoicesController {
   }
 
   @Patch(':id/status')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_COLLECT)
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('trangThaiThanhToan') trangThaiThanhToan?: 'UNPAID' | 'PAID' | 'OVERDUE',
@@ -376,13 +385,13 @@ export class InvoicesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.INVOICES_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.restore(id);
   }

@@ -10,16 +10,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateLocalityDto } from './dto/create-locality.dto';
 import { UpdateLocalityDto } from './dto/update-locality.dto';
 import { LocalitiesService } from './localities.service';
 
 @Controller('localities')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.LOCATIONS_READ)
 export class LocalitiesController {
   constructor(private readonly localitiesService: LocalitiesService) {}
 
@@ -42,13 +43,13 @@ export class LocalitiesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   create(@Body() createLocalityDto: CreateLocalityDto) {
     return this.localitiesService.create(createLocalityDto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateLocalityDto: UpdateLocalityDto,
@@ -57,13 +58,13 @@ export class LocalitiesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.localitiesService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.localitiesService.restore(id);
   }

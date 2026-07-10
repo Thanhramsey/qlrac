@@ -15,16 +15,17 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RoutesService } from './routes.service';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 
 @Controller('routes')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2', 'STAFF')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.ROUTES_READ)
 export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
@@ -51,12 +52,13 @@ export class RoutesController {
   }
 
   @Post()
+  @RequirePermissions(APP_PERMISSIONS.ROUTES_MANAGE)
   create(@Body() createRouteDto: CreateRouteDto) {
     return this.routesService.create(createRouteDto);
   }
 
   @Post('import')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.ROUTES_IMPORT)
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   importFromExcel(@UploadedFile() file?: Express.Multer.File) {
@@ -64,6 +66,7 @@ export class RoutesController {
   }
 
   @Patch(':id')
+  @RequirePermissions(APP_PERMISSIONS.ROUTES_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRouteDto: UpdateRouteDto,
@@ -72,12 +75,13 @@ export class RoutesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(APP_PERMISSIONS.ROUTES_MANAGE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.routesService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.ROUTES_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.routesService.restore(id);
   }

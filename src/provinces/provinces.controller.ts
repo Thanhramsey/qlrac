@@ -10,16 +10,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateProvinceDto } from './dto/create-province.dto';
 import { UpdateProvinceDto } from './dto/update-province.dto';
 import { ProvincesService } from './provinces.service';
 
 @Controller('provinces')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.LOCATIONS_READ)
 export class ProvincesController {
   constructor(private readonly provincesService: ProvincesService) {}
 
@@ -34,13 +35,13 @@ export class ProvincesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   create(@Body() createProvinceDto: CreateProvinceDto) {
     return this.provincesService.create(createProvinceDto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProvinceDto: UpdateProvinceDto,
@@ -49,13 +50,13 @@ export class ProvincesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.provincesService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.LOCATIONS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.provincesService.restore(id);
   }

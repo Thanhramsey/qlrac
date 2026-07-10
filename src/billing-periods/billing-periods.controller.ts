@@ -10,22 +10,22 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { BillingPeriodsService } from './billing-periods.service';
 import { CreateBillingPeriodDto } from './dto/create-billing-period.dto';
 import { UpdateBillingPeriodDto } from './dto/update-billing-period.dto';
 import { UpdateBillingPeriodConfigDto } from './dto/update-billing-period-config.dto';
 
 @Controller('billing-periods')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_READ)
 export class BillingPeriodsController {
   constructor(private readonly billingPeriodsService: BillingPeriodsService) {}
 
   @Get()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '20',
@@ -39,49 +39,47 @@ export class BillingPeriodsController {
   }
 
   @Get('config')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   getConfig() {
     return this.billingPeriodsService.getConfig();
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2', 'ACCOUNTANT', 'STAFF')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.billingPeriodsService.findOne(id);
   }
 
   @Post()
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_MANAGE)
   create(@Body() dto: CreateBillingPeriodDto) {
     return this.billingPeriodsService.create(dto);
   }
 
   @Patch('config')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_CONFIG)
   updateConfig(@Body() dto: UpdateBillingPeriodConfigDto) {
     return this.billingPeriodsService.updateConfig(dto);
   }
 
   @Post('auto-generate-now')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_MANAGE)
   runAutoCreateNow() {
     return this.billingPeriodsService.runAutoCreateNow();
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'ADMIN_LEVEL_2')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_MANAGE)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBillingPeriodDto) {
     return this.billingPeriodsService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.billingPeriodsService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.BILLING_PERIODS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.billingPeriodsService.restore(id);
   }

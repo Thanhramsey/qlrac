@@ -1,3 +1,4 @@
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
 import {
   Body,
   Controller,
@@ -10,16 +11,16 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 
 @Controller('collections')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2', 'STAFF')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.COLLECTIONS_READ)
 export class CollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 
@@ -37,11 +38,13 @@ export class CollectionsController {
   }
 
   @Post()
+  @RequirePermissions(APP_PERMISSIONS.COLLECTIONS_MANAGE)
   create(@Body() createCollectionDto: CreateCollectionDto) {
     return this.collectionsService.create(createCollectionDto);
   }
 
   @Patch(':id')
+  @RequirePermissions(APP_PERMISSIONS.COLLECTIONS_MANAGE)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCollectionDto: UpdateCollectionDto,
@@ -50,11 +53,13 @@ export class CollectionsController {
   }
 
   @Delete(':id')
+  @RequirePermissions(APP_PERMISSIONS.COLLECTIONS_MANAGE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.collectionsService.remove(id);
   }
 
   @Patch(':id/restore')
+  @RequirePermissions(APP_PERMISSIONS.COLLECTIONS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.collectionsService.restore(id);
   }

@@ -1,13 +1,14 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { QueryUserActionLogDto } from './dto/query-user-action-log.dto';
 import { UserActionLogsService } from './user-action-logs.service';
 
 @Controller('user-action-logs')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.USER_ACTION_LOGS_READ)
 export class UserActionLogsController {
   constructor(private readonly userActionLogsService: UserActionLogsService) {}
 

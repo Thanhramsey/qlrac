@@ -10,16 +10,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
+import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateSystemParameterDto } from './dto/create-system-parameter.dto';
 import { UpdateSystemParameterDto } from './dto/update-system-parameter.dto';
 import { SystemParametersService } from './system-parameters.service';
 
 @Controller('system-parameters')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'ADMIN_LEVEL_2')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_READ)
 export class SystemParametersController {
   constructor(private readonly systemParametersService: SystemParametersService) {}
 
@@ -44,25 +45,25 @@ export class SystemParametersController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_MANAGE)
   create(@Body() dto: CreateSystemParameterDto) {
     return this.systemParametersService.create(dto);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_MANAGE)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSystemParameterDto) {
     return this.systemParametersService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.systemParametersService.remove(id);
   }
 
   @Patch(':id/restore')
-  @Roles('ADMIN')
+  @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_RESTORE)
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.systemParametersService.restore(id);
   }

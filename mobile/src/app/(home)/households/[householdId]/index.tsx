@@ -17,6 +17,7 @@ import * as Sharing from 'expo-sharing';
 
 import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
+import { hasSavedPrinterConnection, printThermalReceipt } from '@/printer/bluetooth-printer';
 import type { LoginResponse } from '@/types/auth';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
@@ -72,6 +73,41 @@ interface ReceiptPayloadResponse {
   invoices: ReceiptPayloadInvoice[];
 }
 
+interface SystemParameterItem {
+  id: number;
+  tenThamSo: string;
+  giaTri: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PagedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+interface ReceiptUnitInfo {
+  unitName: string;
+  unitAddress: string;
+  unitPhone: string;
+  unitBankAccount: string;
+  qrPaymentImageUrl: string;
+}
+
+const DEFAULT_RECEIPT_UNIT_INFO: ReceiptUnitInfo = {
+  unitName: 'Ban Quan ly phuong An Khe',
+  unitAddress: '',
+  unitPhone: '',
+  unitBankAccount: '',
+  qrPaymentImageUrl: '',
+};
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
@@ -98,6 +134,60 @@ function getStatusLabel(status: PaymentStatus) {
 
 function toNumber(value: unknown) {
   return Number(value ?? 0);
+}
+
+function resolveResourceUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(trimmed) || /^data:image\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (!trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  try {
+    return new URL(trimmed, httpClient.defaults.baseURL).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+async function loadReceiptUnitInfo() {
+  try {
+    const response = await httpClient.get<PagedResponse<SystemParameterItem>>('/system-parameters', {
+      params: { page: 1, limit: 200 },
+    });
+
+    const paramMap = new Map(
+      (response.data.data ?? []).map((item) => [item.tenThamSo?.trim(), item.giaTri?.trim() ?? '']),
+    );
+
+    const qrPaymentRaw =
+      paramMap.get('QR thanh toán') ||
+      paramMap.get('QR thanh toan') ||
+      paramMap.get('QR ngân hàng') ||
+      paramMap.get('QR ngan hang') ||
+      paramMap.get('Ảnh QR thanh toán') ||
+      paramMap.get('Anh QR thanh toan') ||
+      paramMap.get('QR_PAYMENT_IMAGE_URL') ||
+      '';
+
+    return {
+      unitName: paramMap.get('Tên đơn vị') || paramMap.get('Ten don vi') || DEFAULT_RECEIPT_UNIT_INFO.unitName,
+      unitAddress: paramMap.get('Địa chỉ') || paramMap.get('Dia chi') || '',
+      unitPhone: paramMap.get('Số điện thoại') || paramMap.get('So dien thoai') || '',
+      unitBankAccount:
+        paramMap.get('Số tài khoản ngân hàng') || paramMap.get('So tai khoan ngan hang') || '',
+      qrPaymentImageUrl: resolveResourceUrl(qrPaymentRaw),
+    };
+  } catch {
+    return DEFAULT_RECEIPT_UNIT_INFO;
+  }
 }
 
 function buildReceiptHtml(invoice: ReceiptPayloadInvoice) {
@@ -390,8 +480,30 @@ export default function HouseholdDetailRoute() {
   };
 
   const printReceipt = async (invoiceId: number) => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Thong bao', 'In Bluetooth hien chi ho tro tren Android.');
+      return;
+    }
+
+    const hasConnection = await hasSavedPrinterConnection();
+    if (!hasConnection) {
+      Alert.alert('Chua ket noi may in', 'Ban chua ket noi may in Bluetooth. Ban co muon vao man hinh ket noi may in khong?', [
+        {
+          text: 'Khong',
+          style: 'cancel',
+        },
+        {
+          text: 'Dong y',
+          onPress: () => {
+            router.push('/printer-connection' as never);
+          },
+        },
+      ]);
+      return;
+    }
+
     setActionLoadingId(invoiceId);
-    setActionLabel('Đang tạo phiếu thu...');
+    setActionLabel('Dang in phieu thu...');
     try {
       const response = await httpClient.get<ReceiptPayloadResponse>('/invoices/receipt', {
         params: { invoiceIds: String(invoiceId) },
@@ -399,28 +511,53 @@ export default function HouseholdDetailRoute() {
 
       const invoice = response.data?.invoices?.[0];
       if (!invoice) {
-        Alert.alert('Lỗi', 'Không có dữ liệu phiếu thu để in');
+        Alert.alert('Loi', 'Khong co du lieu phieu thu de in');
         return;
       }
 
-      if (Platform.OS === 'web') {
-        const popup = globalThis.open('', '_blank');
-        if (!popup) {
-          Alert.alert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để in phiếu.');
-          return;
-        }
+      const unitInfo = await loadReceiptUnitInfo();
 
-        popup.document.write(buildReceiptHtml(invoice));
-        popup.document.close();
-      } else {
-        Alert.alert('Thông báo', 'Đã tạo dữ liệu phiếu thu. Hiện chỉ hỗ trợ in trực tiếp trên web.');
-      }
+      await printThermalReceipt({
+        receiptNumber: `PT-${invoice.id}`,
+        date: invoice.paymentDate ?? new Date().toISOString(),
+        customerName: invoice.household?.tenChuHo ?? '---',
+        customerAddress: invoice.household?.diaChi ?? '---',
+        billingPeriod: invoice.kyHoaDon,
+        serviceName: 'Thu gom rac sinh hoat',
+        totalAmount: Number(invoice.tongTien) + Number(invoice.thue),
+        cashierName: session?.user.hoVaTen ?? '---',
+        unitName: unitInfo.unitName,
+        unitAddress: unitInfo.unitAddress,
+        unitPhone: unitInfo.unitPhone,
+        unitBankAccount: unitInfo.unitBankAccount,
+        qrPaymentImageUrl: unitInfo.qrPaymentImageUrl,
+      });
+
+      Alert.alert('Thong bao', 'Da gui lenh in phieu thu toi may in Bluetooth.');
     } catch (error) {
       const message =
         axios.isAxiosError(error)
-          ? error.response?.data?.message ?? 'In phiếu thu thất bại'
-          : 'In phiếu thu thất bại';
-      Alert.alert('Lỗi', message);
+          ? error.response?.data?.message ?? 'In phieu thu that bai'
+          : error instanceof Error
+            ? error.message
+            : 'In phieu thu that bai';
+
+      Alert.alert('Loi', message);
+
+      if (message.toLowerCase().includes('ket noi')) {
+        Alert.alert('Ket noi may in', 'Ban co muon vao man hinh ket noi may in de thu lai khong?', [
+          {
+            text: 'Khong',
+            style: 'cancel',
+          },
+          {
+            text: 'Dong y',
+            onPress: () => {
+              router.push('/printer-connection' as never);
+            },
+          },
+        ]);
+      }
     } finally {
       setActionLoadingId(null);
       setActionLabel('');

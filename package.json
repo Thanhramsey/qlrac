@@ -24,7 +24,8 @@
     "db:seed": "node prisma/seed.mjs",
     "db:setup": "npx prisma migrate deploy && npm run db:seed",
     "db:export": "node scripts/db-export.mjs",
-    "db:import": "node scripts/db-import.mjs"
+    "db:import": "node scripts/db-import.mjs",
+    "postinstall": "patch-package"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
@@ -58,6 +59,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.0.0",
     "jest": "^30.0.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.4.2",
     "prisma": "^7.8.0",
     "source-map-support": "^0.5.21",

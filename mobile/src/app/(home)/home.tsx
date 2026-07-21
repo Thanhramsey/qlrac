@@ -113,6 +113,8 @@ interface HouseholdHistoryResponse {
   };
 }
 
+const PRINTER_MENU_KEY = '__printer_connection__';
+
 type MyMenusResponse = {
   roleCode: string;
   menus: AppMenuItem[];
@@ -743,8 +745,35 @@ export default function HomeRoute() {
     }
   };
 
+  const handlePrinterMenuPress = () => {
+    setActiveMenuKey(PRINTER_MENU_KEY);
+    setDrawerOpen(false);
+    router.push('/printer-connection' as never);
+  };
+
   const renderMenuGroups = () => (
     <View style={styles.menuGroupList}>
+      <View style={styles.menuSection}>
+        <Text style={styles.menuSectionTitle}>Thiet bi</Text>
+        <Pressable
+          onPress={handlePrinterMenuPress}
+          style={({ pressed }) => [
+            styles.menuItemRow,
+            styles.menuItemRowSingle,
+            activeMenuKey === PRINTER_MENU_KEY && styles.menuItemRowActive,
+            pressed && styles.buttonPressed,
+          ]}>
+          <View style={styles.menuBullet} />
+          <Text
+            style={[
+              styles.menuItemText,
+              activeMenuKey === PRINTER_MENU_KEY && styles.menuItemTextActive,
+            ]}>
+            Ket noi may in RI-5809DD
+          </Text>
+        </Pressable>
+      </View>
+
       {menus.length > 0 ? (
         menus.map((menu) => (
           <View key={menu.key} style={styles.menuSection}>

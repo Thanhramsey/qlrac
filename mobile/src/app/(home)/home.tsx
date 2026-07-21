@@ -1156,6 +1156,18 @@ export default function HomeRoute() {
 
         <View style={styles.drawerFooter}>
           <Pressable
+            onPress={() => {
+              setDrawerOpen(false);
+              router.push('/printer-connection' as never);
+            }}
+            style={({ pressed }) => [
+              styles.drawerPrinterButton,
+              { opacity: pressed ? 0.75 : 1 },
+            ]}>
+            <Text style={styles.drawerPrinterText}>🖨 Máy in Bluetooth</Text>
+          </Pressable>
+
+          <Pressable
             onPress={handleDrawerLogout}
             disabled={loggingOut}
             style={({ pressed }) => [
@@ -1266,6 +1278,20 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#edf2ef',
+  },
+  drawerPrinterButton: {
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: '#e6f3ee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#bcdccf',
+  },
+  drawerPrinterText: {
+    color: '#0b4f3f',
+    fontWeight: '700',
   },
   drawerLogoutButton: {
     minHeight: 42,

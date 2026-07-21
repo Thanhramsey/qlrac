@@ -18,6 +18,8 @@ import * as Sharing from 'expo-sharing';
 import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
+import { printerService } from '@/services/printer-service';
+import { API_BASE_URL } from '@/constants/api-base-url';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
@@ -100,9 +102,13 @@ function toNumber(value: unknown) {
   return Number(value ?? 0);
 }
 
-function buildReceiptHtml(invoice: ReceiptPayloadInvoice) {
+function buildReceiptHtml(invoice: ReceiptPayloadInvoice, qrThanhToan?: string) {
   const total = Number(invoice.tongTien) + Number(invoice.thue);
   const generatedAt = new Date().toLocaleString('vi-VN');
+
+  const qrImageUrl = qrThanhToan
+    ? (qrThanhToan.startsWith('http') ? qrThanhToan : `${API_BASE_URL}${qrThanhToan}`)
+    : '';
 
   return `<!doctype html>
 <html lang="vi">
@@ -116,6 +122,9 @@ function buildReceiptHtml(invoice: ReceiptPayloadInvoice) {
       .sub { margin: 0 0 16px; color: #4b7167; }
       .row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px dashed #d7e9e2; padding-bottom: 8px; }
       .strong { font-weight: 700; }
+      .qr-container { text-align: center; margin-top: 24px; border-top: 1px dashed #cfe1db; padding-top: 16px; }
+      .qr-img { width: 180px; height: 180px; object-fit: contain; }
+      .qr-label { font-size: 14px; font-weight: bold; color: #0d8a6a; margin-top: 4px; }
     </style>
   </head>
   <body>
@@ -130,6 +139,13 @@ function buildReceiptHtml(invoice: ReceiptPayloadInvoice) {
       <div class="row"><span>Thuế</span><span class="strong">${formatCurrency(Number(invoice.thue))}</span></div>
       <div class="row"><span>Tổng cộng</span><span class="strong">${formatCurrency(total)}</span></div>
       <div class="row"><span>Ngày thu</span><span class="strong">${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleString('vi-VN') : '---'}</span></div>
+      
+      ${qrImageUrl ? `
+      <div class="qr-container">
+        <p class="qr-label">QR THANH TOÁN</p>
+        <img class="qr-img" src="${qrImageUrl}" alt="Mã QR thanh toán" />
+      </div>
+      ` : ''}
     </div>
     <script>
       window.onload = function () { window.print(); };
@@ -390,10 +406,33 @@ export default function HouseholdDetailRoute() {
   };
 
   const printReceipt = async (invoiceId: number) => {
+    if (Platform.OS !== 'web') {
+      const isConnected = printerService.getIsConnected();
+      if (!isConnected) {
+        Alert.alert(
+          'Chưa kết nối máy in',
+          'Bạn có muốn kết nối với máy in nhiệt Bluetooth RI-5809DD không?',
+          [
+            {
+              text: 'Không',
+              style: 'cancel',
+            },
+            {
+              text: 'Có',
+              onPress: () => {
+                router.push('/printer-connection' as never);
+              },
+            },
+          ]
+        );
+        return;
+      }
+    }
+
     setActionLoadingId(invoiceId);
     setActionLabel('Đang tạo phiếu thu...');
     try {
-      const response = await httpClient.get<ReceiptPayloadResponse>('/invoices/receipt', {
+      const response = await httpClient.get<any>('/invoices/receipt', {
         params: { invoiceIds: String(invoiceId) },
       });
 
@@ -410,10 +449,15 @@ export default function HouseholdDetailRoute() {
           return;
         }
 
-        popup.document.write(buildReceiptHtml(invoice));
+        popup.document.write(buildReceiptHtml(invoice, response.data?.qrThanhToan));
         popup.document.close();
       } else {
-        Alert.alert('Thông báo', 'Đã tạo dữ liệu phiếu thu. Hiện chỉ hỗ trợ in trực tiếp trên web.');
+        await printerService.printReceipt(response.data);
+        Alert.alert(
+          'In thành công',
+          'Đã in phiếu thu thành công trên máy in nhiệt Bluetooth RI-5809DD!',
+          [{ text: 'Đóng' }]
+        );
       }
     } catch (error) {
       const message =

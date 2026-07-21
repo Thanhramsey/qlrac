@@ -18,7 +18,14 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.anonymous.mobile",
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -34,7 +41,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "with-rn-bluetooth-classic",
+        {
+          "peripheralUsageDescription": "Cho phép ứng dụng sử dụng Bluetooth để kết nối với máy in nhiệt.",
+          "alwaysUsageDescription": "Cho phép ứng dụng luôn kết nối với máy in nhiệt qua Bluetooth.",
+          "protocols": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

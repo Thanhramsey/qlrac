@@ -10,8 +10,10 @@ import {
   Table,
   Typography,
   message,
+  Upload,
 } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
+import { UploadOutlined } from '@ant-design/icons'
 import { apiClient } from '../api/axios.instance'
 import type { PagedResponse, SystemParameterItem } from '../types'
 
@@ -32,6 +34,50 @@ export function SystemParametersPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<SystemParameterFormValues>()
+  const watchedTenThamSo = Form.useWatch('tenThamSo', form)
+  const [uploading, setUploading] = useState(false)
+
+  const handleUpload = async (file: File) => {
+    if (!editingItem) {
+      message.error('Vui lòng lưu tham số trước khi upload file')
+      return false
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    setUploading(true)
+    try {
+      const response = await apiClient.post<SystemParameterItem>(
+        `/system-parameters/${editingItem.id}/upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        },
+      )
+      form.setFieldsValue({ giaTri: response.data.giaTri })
+      message.success('Upload file thành công')
+      void fetchData(page, limit)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Upload file thất bại')
+    } finally {
+      setUploading(false)
+    }
+    return false
+  }
+
+  const getFullFileUrl = (url: string) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    const baseUrl = apiClient.defaults.baseURL || ''
+    if (baseUrl.startsWith('/')) {
+      const origin = window.location.origin
+      return `${origin}${url}`
+    }
+    return `${baseUrl.replace('/api', '')}${url}`
+  }
 
   const fetchData = async (nextPage = page, nextLimit = limit) => {
     setLoading(true)
@@ -228,7 +274,7 @@ export function SystemParametersPage() {
             label="Tên tham số"
             rules={[{ required: true, message: 'Vui lòng nhập tên tham số' }]}
           >
-            <Input placeholder="VD: Tên đơn vị" />
+            <Input placeholder="VD: Tên đơn vị" disabled={!!editingItem} />
           </Form.Item>
 
           <Form.Item
@@ -238,6 +284,29 @@ export function SystemParametersPage() {
           >
             <Input.TextArea rows={4} placeholder="Nhập giá trị tham số" />
           </Form.Item>
+
+          {editingItem && (watchedTenThamSo === 'QR thanh toán' || editingItem.tenThamSo === 'QR thanh toán') && (
+            <Form.Item label="Upload mã QR">
+              <Upload
+                accept="image/*"
+                beforeUpload={handleUpload}
+                showUploadList={false}
+              >
+                <Button icon={<UploadOutlined />} loading={uploading}>
+                  Chọn ảnh QR thanh toán
+                </Button>
+              </Upload>
+              {form.getFieldValue('giaTri') && form.getFieldValue('giaTri').startsWith('/') && (
+                <div style={{ marginTop: 8 }}>
+                  <img 
+                    src={getFullFileUrl(form.getFieldValue('giaTri'))}
+                    alt="QR Code"
+                    style={{ maxWidth: 200, maxHeight: 200, border: '1px solid #d9d9d9', borderRadius: 8, padding: 4 }}
+                  />
+                </div>
+              )}
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </Card>

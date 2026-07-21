@@ -9,7 +9,13 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 import { APP_PERMISSIONS } from '../auth/constants/app-permissions.constant';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -60,6 +66,30 @@ export class SystemParametersController {
   @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_DELETE)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.systemParametersService.remove(id);
+  }
+
+  @Post(':id/upload')
+  @RequirePermissions(APP_PERMISSIONS.SYSTEM_PARAMETERS_MANAGE)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: join(process.cwd(), 'uploads', 'parameters'),
+        filename: (_req, file, cb) => {
+          const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          cb(null, `param-${suffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  async uploadFile(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn file để upload');
+    }
+    const fileUrl = `/uploads/parameters/${file.filename}`;
+    return this.systemParametersService.update(id, { giaTri: fileUrl });
   }
 
   @Patch(':id/restore')

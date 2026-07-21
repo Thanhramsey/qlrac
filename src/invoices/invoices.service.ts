@@ -682,10 +682,34 @@ export class InvoicesService {
 
     const totalAmount = invoices.reduce((sum, item) => sum + Number(item.tongTien) + Number(item.thue), 0);
 
+    // Fetch system parameters for receipt header/footer
+    const systemParams = await this.prisma.systemParameter.findMany({
+      where: {
+        tenThamSo: {
+          in: [
+            'Tên đơn vị',
+            'Địa chỉ',
+            'Số điện thoại',
+            'Số tài khoản ngân hàng',
+            'PORTAL_SERVICE_ADDRESS_ID',
+            'QR thanh toán',
+          ],
+        },
+      },
+    });
+
+    const paramsMap = new Map(systemParams.map((item) => [item.tenThamSo, item.giaTri?.trim() ?? '']));
+
     return {
       generatedAt: new Date().toISOString(),
       totalInvoices: invoices.length,
       totalAmount,
+      companyName: paramsMap.get('Tên đơn vị') || 'CÔNG TRÌNH ĐÔ THỊ AN KHÊ',
+      companyAddress: paramsMap.get('Địa chỉ') || '',
+      companyPhone: paramsMap.get('Số điện thoại') || '',
+      companyAccountNumber: paramsMap.get('Số tài khoản ngân hàng') || '',
+      portalUrl: paramsMap.get('PORTAL_SERVICE_ADDRESS_ID') || '',
+      qrThanhToan: paramsMap.get('QR thanh toán') || '',
       invoices,
     };
   }

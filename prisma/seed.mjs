@@ -665,6 +665,7 @@ async function upsertSystemParameters() {
     'C_USER_ID',
     'WS_PASSWORD_ID',
     'WS_USER_ID',
+    'QR thanh toán',
   ];
 
   for (const tenThamSo of defaults) {

@@ -61,6 +61,125 @@ export class InvoicesService implements OnModuleInit {
     }
   }
 
+  async getDebtSummary(params: {
+    page?: number;
+    limit?: number;
+    routeId?: number;
+    minDebt?: number;
+    minOverduePeriods?: number;
+  }) {
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    // Find all households that have at least one UNPAID or OVERDUE invoice
+    const debtWhere: Prisma.HouseholdWhereInput = {
+      isActive: true,
+      ...(params.routeId ? { tuyenThuRacId: params.routeId } : {}),
+      invoices: {
+        some: {
+          trangThaiThanhToan: {
+            in: [InvoicePaymentStatus.UNPAID, InvoicePaymentStatus.OVERDUE],
+          },
+        },
+      },
+    };
+
+    const households = await this.prisma.household.findMany({
+      where: debtWhere,
+      select: {
+        id: true,
+        maHoDan: true,
+        tenChuHo: true,
+        diaChi: true,
+        tuyenThuRac: { select: { id: true, maTuyen: true, tenTuyen: true } },
+        invoices: {
+          select: {
+            id: true,
+            kyHoaDon: true,
+            tongTien: true,
+            thue: true,
+            trangThaiThanhToan: true,
+            paymentDate: true,
+          },
+        },
+      },
+    });
+
+    // Compute debt stats per household
+    type DebtRow = {
+      householdId: number;
+      maHoDan: string;
+      tenChuHo: string;
+      diaChi: string;
+      tuyenThuRac: { id: number; maTuyen: string; tenTuyen: string } | null;
+      overdueCount: number;
+      unpaidCount: number;
+      totalDebt: number;
+      lastPaidAt: string | null;
+    };
+
+    const rows: DebtRow[] = households.map((hh) => {
+      let totalDebt = 0;
+      let overdueCount = 0;
+      let unpaidCount = 0;
+      let lastPaidAt: string | null = null;
+
+      for (const inv of hh.invoices) {
+        if (
+          inv.trangThaiThanhToan === InvoicePaymentStatus.UNPAID ||
+          inv.trangThaiThanhToan === InvoicePaymentStatus.OVERDUE
+        ) {
+          totalDebt += Number(inv.tongTien) + Number(inv.thue);
+          if (inv.trangThaiThanhToan === InvoicePaymentStatus.OVERDUE) overdueCount++;
+          else unpaidCount++;
+        }
+        if (inv.trangThaiThanhToan === InvoicePaymentStatus.PAID && inv.paymentDate) {
+          const d = inv.paymentDate.toISOString();
+          if (!lastPaidAt || d > lastPaidAt) lastPaidAt = d;
+        }
+      }
+
+      return {
+        householdId: hh.id,
+        maHoDan: hh.maHoDan,
+        tenChuHo: hh.tenChuHo,
+        diaChi: hh.diaChi,
+        tuyenThuRac: hh.tuyenThuRac ?? null,
+        overdueCount,
+        unpaidCount,
+        totalDebt,
+        lastPaidAt,
+      };
+    });
+
+    // Apply filters
+    let filtered = rows.filter((r) => r.totalDebt > 0);
+    if (params.minDebt && params.minDebt > 0) {
+      filtered = filtered.filter((r) => r.totalDebt >= params.minDebt!);
+    }
+    if (params.minOverduePeriods && params.minOverduePeriods > 0) {
+      filtered = filtered.filter((r) => r.overdueCount >= params.minOverduePeriods!);
+    }
+
+    // Sort by totalDebt descending
+    filtered.sort((a, b) => b.totalDebt - a.totalDebt);
+
+    const total = filtered.length;
+    const data = filtered.slice(skip, skip + limit);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+
   async getMobileCollectionFilters(currentUser?: JwtPayload) {
     const routeWhere: Prisma.RouteWhereInput =
       currentUser?.role === 'STAFF'

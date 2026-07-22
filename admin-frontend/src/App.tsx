@@ -1,6 +1,7 @@
 import {
   Avatar,
   Button,
+  ConfigProvider,
   Dropdown,
   Form,
   Input,
@@ -10,11 +11,15 @@ import {
   Spin,
   Space,
   Tabs,
+  Tooltip,
   Typography,
   Upload,
   message,
+  theme as antdTheme,
 } from 'antd'
 import {
+  BulbFilled,
+  BulbOutlined,
   DownOutlined,
   InfoCircleOutlined,
   LogoutOutlined,
@@ -24,6 +29,7 @@ import {
   UserSwitchOutlined,
 } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
+import { useTheme } from './contexts/theme-context'
 import {
   apiClient,
   authTokenStorage,
@@ -46,6 +52,8 @@ import { UserPermissionsPage } from './features/user-permissions-page'
 import { UsersPage } from './features/users-page'
 import { ReportsPage } from './features/reports-page'
 import { DashboardPage } from './features/dashboard-page'
+import { DebtManagementPage } from './features/debt-management-page'
+import { HouseholdHistoryModal } from './components/HouseholdHistoryModal'
 import type { LoginResponse, RoleOption, UserListItem } from './types'
 import './App.css'
 
@@ -166,10 +174,12 @@ function clearAuthState(setSession: (session: LoginResponse | null) => void) {
 }
 
 function App() {
+  const { isDark, toggleTheme } = useTheme()
   const [session, setSession] = useState<LoginResponse | null>(null)
   const [activeMenuKey, setActiveMenuKey] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
+  const [debtHistoryHouseholdId, setDebtHistoryHouseholdId] = useState<number | null>(null)
 
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [rolesLoading, setRolesLoading] = useState(false)
@@ -429,16 +439,27 @@ function App() {
 
   if (!session) {
     return (
-      <LoginPage
-        loading={loginLoading}
-        errorMessage={loginError}
-        onSubmit={handleLogin}
-      />
+      <ConfigProvider
+        theme={{
+          algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        }}
+      >
+        <LoginPage
+          loading={loginLoading}
+          errorMessage={loginError}
+          onSubmit={handleLogin}
+        />
+      </ConfigProvider>
     )
   }
 
   return (
-    <Layout className="app-shell">
+    <ConfigProvider
+      theme={{
+        algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+      }}
+    >
+    <Layout className={`app-shell${isDark ? ' app-shell-dark' : ''}`}>
       <Sider breakpoint="lg" collapsedWidth="0" width={280} className="app-sider">
         <div className="brand-block">
           <Typography.Title level={4}>Ban Quản lý phường An Khê</Typography.Title>
@@ -464,46 +485,59 @@ function App() {
             </Typography.Text>
           </Space>
 
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              items: [
-                {
-                  key: 'profile',
-                  icon: <InfoCircleOutlined />,
-                  label: 'Thông tin',
-                },
-                {
-                  key: 'logout',
-                  icon: <LogoutOutlined />,
-                  label: 'Đăng xuất',
-                },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'profile') {
-                  void handleOpenProfileModal()
-                  return
-                }
+          <Space size={8}>
 
-                if (key === 'logout') {
-                  void performLogout()
-                }
-              },
-            }}
-          >
-            <div className="user-dropdown-trigger">
-              <Avatar
-                size={40}
-                src={resolveMediaUrl(session.user.avatarUrl)}
-                icon={<UserOutlined />}
+            <Tooltip title={isDark ? 'Chuyển sang sáng' : 'Chuyển sang tối'}>
+              <Button
+                type="text"
+                shape="circle"
+                className="theme-toggle-btn"
+                icon={isDark ? <BulbFilled style={{ color: '#fadb14', fontSize: 18 }} /> : <BulbOutlined style={{ fontSize: 18 }} />}
+                onClick={toggleTheme}
               />
-              <div className="user-dropdown-meta">
-                <Typography.Text strong>{session.user.hoVaTen}</Typography.Text>
-                <Typography.Text type="secondary">{session.user.taiKhoan}</Typography.Text>
+            </Tooltip>
+
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  {
+                    key: 'profile',
+                    icon: <InfoCircleOutlined />,
+                    label: 'Thông tin',
+                  },
+                  {
+                    key: 'logout',
+                    icon: <LogoutOutlined />,
+                    label: 'Đăng xuất',
+                  },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'profile') {
+                    void handleOpenProfileModal()
+                    return
+                  }
+
+                  if (key === 'logout') {
+                    void performLogout()
+                  }
+                },
+              }}
+            >
+              <div className="user-dropdown-trigger">
+                <Avatar
+                  size={40}
+                  src={resolveMediaUrl(session.user.avatarUrl)}
+                  icon={<UserOutlined />}
+                />
+                <div className="user-dropdown-meta">
+                  <Typography.Text strong>{session.user.hoVaTen}</Typography.Text>
+                  <Typography.Text type="secondary">{session.user.taiKhoan}</Typography.Text>
+                </div>
+                <DownOutlined />
               </div>
-              <DownOutlined />
-            </div>
-          </Dropdown>
+            </Dropdown>
+          </Space>
         </Header>
 
         <Content className="app-content">
@@ -548,8 +582,16 @@ function App() {
           {!rolesLoading && activeMenuKey === 'reports-revenue-summary' ? (
             <ReportsPage initialTab="revenue-summary" />
           ) : null}
+          {!rolesLoading && activeMenuKey === 'debt-management' ? (
+            <DebtManagementPage onViewHistory={(id) => setDebtHistoryHouseholdId(id)} />
+          ) : null}
         </Content>
       </Layout>
+
+      <HouseholdHistoryModal
+        householdId={debtHistoryHouseholdId}
+        onClose={() => setDebtHistoryHouseholdId(null)}
+      />
 
       <Modal
         open={profileModalOpen}
@@ -672,6 +714,7 @@ function App() {
         )}
       </Modal>
     </Layout>
+    </ConfigProvider>
   )
 }
 

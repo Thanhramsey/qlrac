@@ -6,6 +6,7 @@ import {
   Image,
   Input,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -24,6 +25,7 @@ import {
   HistoryOutlined,
   MoneyCollectOutlined,
   SearchOutlined,
+  SendOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -1202,7 +1204,15 @@ export function InvoiceCollectionsPage() {
               icon={<MoneyCollectOutlined />}
               onClick={() => openCollectModal(selectedRowKeys)}
             >
-              Thu tiền đã chọn
+              Thu tiền
+            </Button>
+            <Button
+              className="toolbar-publish-btn"
+              type="primary"
+              icon={<CloudUploadOutlined />}
+              onClick={() => void publishInvoices(selectedRowKeys)}
+            >
+              Xuất HĐĐT
             </Button>
             <Dropdown
               trigger={["click"]}
@@ -1255,20 +1265,13 @@ export function InvoiceCollectionsPage() {
                 Tải dữ liệu <DownOutlined />
               </Button>
             </Dropdown>
-            <Button
-              className="toolbar-publish-btn"
-              type="primary"
-              icon={<CloudUploadOutlined />}
-              onClick={() => void publishInvoices(selectedRowKeys)}
-            >
-              Xuất hóa đơn ĐT
-            </Button>
+
             <Button
               className="toolbar-sync-btn"
               icon={<SyncOutlined />}
               onClick={() => void syncInvoiceMetadata(selectedRowKeys)}
             >
-              Đồng bộ Seri/Fkey
+              Đồng bộ HĐ
             </Button>
           </Space>
         </Space>
@@ -1345,213 +1348,213 @@ export function InvoiceCollectionsPage() {
               onChange: (keys) => setSelectedRowKeys(keys as number[]),
             }}
             columns={[
-            {
-              title: 'Kỳ',
-              dataIndex: 'kyHoaDon',
-              width: 110,
-            },
-            {
-              title: 'Mã hộ',
-              render: (_, record) => record.household?.maHoDan ?? '---',
-              width: 110,
-            },
-            {
-              title: 'Hộ dân',
-              render: (_, record) => record.household?.tenChuHo ?? '---',
-              width: 180,
-            },
-            {
-              title: 'Trạng thái',
-              render: (_, record) => getStatusTag(record.trangThaiThanhToan),
-              width: 120,
-            },
-            {
-              title: 'Phát hành',
-              render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
-              width: 130,
-            },
-            {
-              title: 'Địa chỉ',
-              render: (_, record) => record.household?.diaChi ?? '---',
-              width: 220,
-            },
-            {
-              title: 'Tuyến đường',
-              render: (_, record) => record.household?.tuyenThuRac?.tenTuyen ?? '---',
-              width: 150,
-            },
-            {
-              title: 'Loại dịch vụ',
-              render: (_, record) => record.household?.serviceCatalog?.tenDichVu ?? '---',
-              width: 170,
-            },
-            {
-              title: 'Số seri',
-              dataIndex: 'invoiceSerial',
-              width: 130,
-              render: (value: string | null | undefined) => value || '---',
-            },
-            {
-              title: 'Fkey',
-              dataIndex: 'invoiceFkey',
-              width: 180,
-              render: (value: string | null | undefined) => value || '---',
-            },
-            {
-              title: 'Ngày phát hành',
-              dataIndex: 'invoiceIssuedAt',
-              width: 170,
-              render: (value: string | null | undefined) =>
-                value ? new Date(value).toLocaleString('vi-VN') : '---',
-            },
-            {
-              title: 'Người xuất',
-              render: (_, record) => record.publishedByName || '---',
-              width: 140,
-            },
-            {
-              title: 'Người thu',
-              render: (_, record) => record.collectedByName || '---',
-              width: 140,
-            },
-            {
-              title: 'Tổng tiền',
-              render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
-              width: 150,
-            },
-            {
-              title: 'Ảnh biên nhận',
-              render: (_, record) =>
-                record.receiptImageUrl ? (
-                  <Image
-                    width={48}
-                    height={48}
-                    style={{ objectFit: 'cover', borderRadius: 8 }}
-                    src={record.receiptImageUrl}
-                  />
-                ) : (
-                  '---'
-                ),
-              width: 120,
-            },
-            {
-              title: 'Thao tác',
-              width: 340,
-              fixed: 'right',
-              render: (_, record) => (
-                <Space size={4} wrap>
-                  <Button
-                    className="invoice-action-btn publish"
-                    size="small"
-                    type="primary"
-                    icon={<CloudUploadOutlined />}
-                    onClick={() => void publishInvoices([record.id])}
-                    disabled={record.invoicePublishStatus === 'SUCCESS'}
-                  >
-                    Xuất HĐĐT
-                  </Button>
-                  <Button
-                    className="invoice-action-btn collect"
-                    type="primary"
-                    size="small"
-                    disabled={record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED'}
-                    onClick={() => openCollectModal([record.id])}
-                  >
-                    Thu tiền
-                  </Button>
-                  <Dropdown
-                    trigger={["click"]}
-                    menu={{
-                      items: [
-                        {
-                          key: 'sync',
-                          label: 'Đồng bộ',
-                          icon: <SyncOutlined />,
-                        },
-                        {
-                          key: 'history',
-                          label: 'Lịch sử',
-                          icon: <HistoryOutlined />,
-                        },
-                        {
-                          key: 'status',
-                          label: 'Trạng thái',
-                          icon: <EditOutlined />,
-                        },
-                        {
-                          type: 'divider',
-                        },
-                        {
-                          key: 'invoice-pdf',
-                          label: 'Tải hóa đơn PDF',
-                          icon: <FilePdfOutlined />,
-                          disabled: !record.invoiceFkey,
-                        },
-                        {
-                          key: 'invoice-image',
-                          label: 'Tải hóa đơn ảnh',
-                          icon: <FileImageOutlined />,
-                          disabled: !record.invoiceFkey,
-                        },
-                        {
-                          key: 'receipt-pdf',
-                          label: 'Tải phiếu thu PDF',
-                          icon: <FilePdfOutlined />,
-                        },
-                        {
-                          key: 'receipt-image',
-                          label: 'Tải phiếu thu ảnh',
-                          icon: <FileImageOutlined />,
-                        },
-                      ],
-                      onClick: ({ key }) => {
-                        if (key === 'sync') {
-                          void syncInvoiceMetadata([record.id])
-                          return
-                        }
-
-                        if (key === 'history') {
-                          void openHistory(record.householdId)
-                          return
-                        }
-
-                        if (key === 'status') {
-                          openStatusModal(record)
-                          return
-                        }
-
-                        if (key === 'invoice-pdf') {
-                          void downloadVnptInvoice(record.id, 'pdf')
-                          return
-                        }
-
-                        if (key === 'invoice-image') {
-                          void downloadVnptInvoice(record.id, 'image')
-                          return
-                        }
-
-                        if (key === 'receipt-pdf') {
-                          void loadReceiptsAndDownload([record.id], 'pdf')
-                          return
-                        }
-
-                        if (key === 'receipt-image') {
-                          void loadReceiptsAndDownload([record.id], 'image')
-                        }
-                      },
-                    }}
-                  >
+              {
+                title: 'Kỳ',
+                dataIndex: 'kyHoaDon',
+                width: 110,
+              },
+              {
+                title: 'Mã hộ',
+                render: (_, record) => record.household?.maHoDan ?? '---',
+                width: 110,
+              },
+              {
+                title: 'Hộ dân',
+                render: (_, record) => record.household?.tenChuHo ?? '---',
+                width: 180,
+              },
+              {
+                title: 'Trạng thái',
+                render: (_, record) => getStatusTag(record.trangThaiThanhToan),
+                width: 120,
+              },
+              {
+                title: 'Phát hành',
+                render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
+                width: 130,
+              },
+              {
+                title: 'Địa chỉ',
+                render: (_, record) => record.household?.diaChi ?? '---',
+                width: 220,
+              },
+              {
+                title: 'Tuyến đường',
+                render: (_, record) => record.household?.tuyenThuRac?.tenTuyen ?? '---',
+                width: 150,
+              },
+              {
+                title: 'Loại dịch vụ',
+                render: (_, record) => record.household?.serviceCatalog?.tenDichVu ?? '---',
+                width: 170,
+              },
+              {
+                title: 'Số seri',
+                dataIndex: 'invoiceSerial',
+                width: 130,
+                render: (value: string | null | undefined) => value || '---',
+              },
+              {
+                title: 'Fkey',
+                dataIndex: 'invoiceFkey',
+                width: 180,
+                render: (value: string | null | undefined) => value || '---',
+              },
+              {
+                title: 'Ngày phát hành',
+                dataIndex: 'invoiceIssuedAt',
+                width: 170,
+                render: (value: string | null | undefined) =>
+                  value ? new Date(value).toLocaleString('vi-VN') : '---',
+              },
+              {
+                title: 'Người xuất',
+                render: (_, record) => record.publishedByName || '---',
+                width: 140,
+              },
+              {
+                title: 'Người thu',
+                render: (_, record) => record.collectedByName || '---',
+                width: 140,
+              },
+              {
+                title: 'Tổng tiền',
+                render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
+                width: 150,
+              },
+              {
+                title: 'Ảnh biên nhận',
+                render: (_, record) =>
+                  record.receiptImageUrl ? (
+                    <Image
+                      width={48}
+                      height={48}
+                      style={{ objectFit: 'cover', borderRadius: 8 }}
+                      src={record.receiptImageUrl}
+                    />
+                  ) : (
+                    '---'
+                  ),
+                width: 120,
+              },
+              {
+                title: 'Thao tác',
+                width: 340,
+                fixed: 'right',
+                render: (_, record) => (
+                  <Space size={4} wrap>
                     <Button
-                      className="invoice-action-btn download"
+                      className="invoice-action-btn publish"
                       size="small"
-                      icon={<DownOutlined />}
+                      type="primary"
+                      icon={<CloudUploadOutlined />}
+                      onClick={() => void publishInvoices([record.id])}
+                      disabled={record.invoicePublishStatus === 'SUCCESS'}
                     >
-                      Khác
+                      Xuất HĐĐT
                     </Button>
-                  </Dropdown>
-                </Space>
-              ),
-            },
+                    <Button
+                      className="invoice-action-btn collect"
+                      type="primary"
+                      size="small"
+                      disabled={record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED'}
+                      onClick={() => openCollectModal([record.id])}
+                    >
+                      Thu tiền
+                    </Button>
+                    <Dropdown
+                      trigger={["click"]}
+                      menu={{
+                        items: [
+                          {
+                            key: 'sync',
+                            label: 'Đồng bộ',
+                            icon: <SyncOutlined />,
+                          },
+                          {
+                            key: 'history',
+                            label: 'Lịch sử',
+                            icon: <HistoryOutlined />,
+                          },
+                          {
+                            key: 'status',
+                            label: 'Trạng thái',
+                            icon: <EditOutlined />,
+                          },
+                          {
+                            type: 'divider',
+                          },
+                          {
+                            key: 'invoice-pdf',
+                            label: 'Tải hóa đơn PDF',
+                            icon: <FilePdfOutlined />,
+                            disabled: !record.invoiceFkey,
+                          },
+                          {
+                            key: 'invoice-image',
+                            label: 'Tải hóa đơn ảnh',
+                            icon: <FileImageOutlined />,
+                            disabled: !record.invoiceFkey,
+                          },
+                          {
+                            key: 'receipt-pdf',
+                            label: 'Tải phiếu thu PDF',
+                            icon: <FilePdfOutlined />,
+                          },
+                          {
+                            key: 'receipt-image',
+                            label: 'Tải phiếu thu ảnh',
+                            icon: <FileImageOutlined />,
+                          },
+                        ],
+                        onClick: ({ key }) => {
+                          if (key === 'sync') {
+                            void syncInvoiceMetadata([record.id])
+                            return
+                          }
+
+                          if (key === 'history') {
+                            void openHistory(record.householdId)
+                            return
+                          }
+
+                          if (key === 'status') {
+                            openStatusModal(record)
+                            return
+                          }
+
+                          if (key === 'invoice-pdf') {
+                            void downloadVnptInvoice(record.id, 'pdf')
+                            return
+                          }
+
+                          if (key === 'invoice-image') {
+                            void downloadVnptInvoice(record.id, 'image')
+                            return
+                          }
+
+                          if (key === 'receipt-pdf') {
+                            void loadReceiptsAndDownload([record.id], 'pdf')
+                            return
+                          }
+
+                          if (key === 'receipt-image') {
+                            void loadReceiptsAndDownload([record.id], 'image')
+                          }
+                        },
+                      }}
+                    >
+                      <Button
+                        className="invoice-action-btn download"
+                        size="small"
+                        icon={<DownOutlined />}
+                      >
+                        Khác
+                      </Button>
+                    </Dropdown>
+                  </Space>
+                ),
+              },
             ]}
             scroll={{ x: 2500 }}
             pagination={{
@@ -1605,6 +1608,22 @@ export function InvoiceCollectionsPage() {
             Đóng
           </Button>,
           <Button
+            key="publish-paid"
+            icon={<SendOutlined />}
+            style={{ background: '#0a5bd8', borderColor: '#0a5bd8', color: '#fff' }}
+            disabled={!historyData?.invoices || !historyData.invoices.some((inv) => inv?.trangThaiThanhToan !== 'PUBLISHED')}
+            onClick={() => {
+              const ids = (historyData?.invoices ?? [])
+                .filter((inv) => inv && inv.trangThaiThanhToan !== 'PUBLISHED')
+                .map((inv) => inv.id)
+              if (ids.length > 0) {
+                void publishInvoices(ids)
+              }
+            }}
+          >
+            Xuất HĐĐT các tháng chưa xuất
+          </Button>,
+          <Button
             key="collect-unpaid"
             type="primary"
             disabled={historySelectedUnpaidIds.length === 0}
@@ -1615,71 +1634,107 @@ export function InvoiceCollectionsPage() {
             Thu các tháng đã chọn
           </Button>,
         ]}
-        width={900}
+        width={1000}
       >
         {historyLoading || !historyData ? null : (
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <div>
-              <strong>{historyData.household.tenChuHo}</strong> - {historyData.household.maHoDan}
+              <strong>{historyData.household?.tenChuHo ?? '-'}</strong> - {historyData.household?.maHoDan ?? '-'}
               <br />
-              <span>{historyData.household.diaChi}</span>
+              <span>{historyData.household?.diaChi ?? '-'}</span>
             </div>
 
             <Space>
-              <Tag color="blue">Tổng: {historyData.summary.total}</Tag>
-              <Tag color="success">Đã thu: {historyData.summary.paid}</Tag>
-              <Tag color="warning">Chưa thu: {historyData.summary.unpaid}</Tag>
+              <Tag color="blue">Tổng: {historyData.summary?.total ?? 0}</Tag>
+              <Tag color="success">Đã thu: {historyData.summary?.paid ?? 0}</Tag>
+              <Tag color="warning">Chưa thu: {historyData.summary?.unpaid ?? 0}</Tag>
             </Space>
 
             <Table<InvoiceItem>
               rowKey="id"
               size="small"
-              dataSource={historyData.invoices}
+              dataSource={historyData.invoices ?? []}
               pagination={false}
+              scroll={{ x: 1000 }}
               rowSelection={{
                 selectedRowKeys: historySelectedUnpaidIds,
                 onChange: (keys) => setHistorySelectedUnpaidIds(keys as number[]),
                 getCheckboxProps: (record) => ({
-                  disabled: record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED',
+                  disabled: !record || record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED',
                 }),
               }}
               columns={[
-                { title: 'Kỳ', dataIndex: 'kyHoaDon', width: 120 },
+                { title: 'Kỳ', dataIndex: 'kyHoaDon', width: 100 },
                 {
                   title: 'Tổng tiền',
-                  render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
-                  width: 140,
+                  render: (_, record) => record ? formatCurrency(Number(record.tongTien || 0) + Number(record.thue || 0)) : '-',
+                  width: 130,
                 },
                 {
                   title: 'Trạng thái',
-                  render: (_, record) => getStatusTag(record.trangThaiThanhToan),
+                  render: (_, record) => record ? getStatusTag(record.trangThaiThanhToan) : '-',
                   width: 120,
                 },
                 {
-                  title: 'Phát hành',
-                  render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
+                  title: 'Phát hành VNPT',
+                  render: (_, record) => record ? getPublishStatusTag(record.invoicePublishStatus) : '-',
                   width: 130,
                 },
                 {
                   title: 'Kỳ gộp',
-                  render: (_, record) => record.mergedPeriodCodes || record.kyHoaDon,
-                  width: 180,
+                  render: (_, record) => record?.mergedPeriodCodes || record?.kyHoaDon || '-',
+                  width: 150,
                 },
                 {
                   title: 'Người xuất',
-                  render: (_, record) => record.publishedByName || '---',
-                  width: 140,
+                  render: (_, record) => record?.publishedByName || '---',
+                  width: 130,
                 },
                 {
                   title: 'Người thu',
-                  render: (_, record) => record.collectedByName || '---',
-                  width: 140,
+                  render: (_, record) => record?.collectedByName || '---',
+                  width: 130,
                 },
                 {
                   title: 'Ngày thu',
                   render: (_, record) =>
-                    record.paymentDate ? new Date(record.paymentDate).toLocaleString('vi-VN') : '---',
-                  width: 180,
+                    record?.paymentDate ? new Date(record.paymentDate).toLocaleString('vi-VN') : '---',
+                  width: 160,
+                },
+                {
+                  title: 'Xuất HĐ điện tử',
+                  key: 'publish',
+                  width: 145,
+                  fixed: 'right',
+                  render: (_, record) => {
+                    if (!record) return null
+                    if (record.trangThaiThanhToan === 'PUBLISHED') {
+                      return <Tag color="processing">Đã phát hành</Tag>
+                    }
+                    const isUnpaid = record.trangThaiThanhToan === 'UNPAID' || record.trangThaiThanhToan === 'OVERDUE'
+                    return (
+                      <Popconfirm
+                        title="Xuất hóa đơn điện tử"
+                        description={
+                          isUnpaid
+                            ? `Hóa đơn kỳ ${record.kyHoaDon} đang chưa thu. Phát hành VNPT sẽ tự động thu tiền và xuất HĐ. Xác nhận xuất?`
+                            : `Xác nhận xuất HĐ điện tử kỳ ${record.kyHoaDon}?`
+                        }
+                        okText="Xuất HĐ"
+                        cancelText="Hủy"
+                        onConfirm={() => void publishInvoices([record.id])}
+                      >
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<SendOutlined />}
+                          style={{ background: '#0a5bd8', borderColor: '#0a5bd8' }}
+                        >
+                          Xuất HĐ
+                        </Button>
+                      </Popconfirm>
+                    )
+                  },
                 },
               ]}
             />

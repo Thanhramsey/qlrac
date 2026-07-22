@@ -1,22 +1,30 @@
 import {
   Button,
   Card,
+  Col,
   DatePicker,
+  Descriptions,
   Form,
   Input,
   Modal,
   Popconfirm,
+  Row,
   Select,
   Space,
+  Statistic,
   Switch,
   Table,
   Tag,
+  Timeline,
+  Tooltip,
+  Typography,
   Upload,
   message,
 } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
+  HistoryOutlined,
   PlusOutlined,
   UploadOutlined,
 } from '@ant-design/icons'
@@ -30,6 +38,7 @@ import type {
   RouteItem,
   ServiceCatalogItem,
 } from '../types'
+import { HouseholdHistoryModal } from '../components/HouseholdHistoryModal'
 
 type HouseholdFormValues = {
   maHoDan: string
@@ -51,6 +60,7 @@ type HouseholdSearchValues = {
   diaChi?: string
 }
 
+
 export function HouseholdsPage() {
   const [listData, setListData] = useState<HouseholdItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -59,6 +69,7 @@ export function HouseholdsPage() {
   const [editingItem, setEditingItem] = useState<HouseholdItem | null>(null)
   const [routes, setRoutes] = useState<RouteItem[]>([])
   const [services, setServices] = useState<ServiceCatalogItem[]>([])
+  const [historyHouseholdId, setHistoryHouseholdId] = useState<number | null>(null)
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -444,10 +455,17 @@ export function HouseholdsPage() {
             {
               title: 'Thao tác',
               key: 'actions',
-              width: 130,
+              width: 160,
               fixed: 'right',
               render: (_, record) => (
                 <Space>
+                  <Tooltip title="Lịch sử thanh toán">
+                    <Button
+                      size="small"
+                      icon={<HistoryOutlined />}
+                      onClick={() => setHistoryHouseholdId(record.id)}
+                    />
+                  </Tooltip>
                   <Button
                     size="small"
                     icon={<EditOutlined />}
@@ -546,6 +564,11 @@ export function HouseholdsPage() {
           </div>
         </Form>
       </Modal>
+
+      <HouseholdHistoryModal
+        householdId={historyHouseholdId}
+        onClose={() => setHistoryHouseholdId(null)}
+      />
     </Card>
   )
 }

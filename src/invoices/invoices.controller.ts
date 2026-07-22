@@ -116,6 +116,23 @@ export class InvoicesController {
     });
   }
 
+  @Get('debt-summary')
+  getDebtSummary(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('routeId') routeId?: string,
+    @Query('minDebt') minDebt?: string,
+    @Query('minOverduePeriods') minOverduePeriods?: string,
+  ) {
+    return this.invoicesService.getDebtSummary({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      routeId: routeId ? Number(routeId) : undefined,
+      minDebt: minDebt ? Number(minDebt) : undefined,
+      minOverduePeriods: minOverduePeriods ? Number(minOverduePeriods) : undefined,
+    });
+  }
+
   @Get()
   findAll(
     @Query('page') page = '1',

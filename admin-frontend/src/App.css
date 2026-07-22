@@ -470,3 +470,107 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ── Dark Mode Overrides ── */
+.dark-mode .app-shell {
+  background:
+    radial-gradient(circle at 10% 5%, rgba(30, 60, 90, 0.35), transparent 28%),
+    radial-gradient(circle at 85% 20%, rgba(20, 50, 80, 0.3), transparent 32%),
+    linear-gradient(140deg, #0d1117 0%, #111827 100%);
+}
+
+.dark-mode .app-shell-dark {
+  background:
+    radial-gradient(circle at 10% 5%, rgba(30, 60, 90, 0.35), transparent 28%),
+    radial-gradient(circle at 85% 20%, rgba(20, 50, 80, 0.3), transparent 32%),
+    linear-gradient(140deg, #0d1117 0%, #111827 100%);
+}
+
+.dark-mode .app-header {
+  background: rgba(17, 24, 39, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark-mode .app-content .ant-table-wrapper .ant-table-thead > tr > th {
+  background: linear-gradient(180deg, #1a2332 0%, #1e293b 100%) !important;
+  color: #94a3b8 !important;
+}
+
+.dark-mode .app-content .ant-table-wrapper .ant-table-tbody > tr:nth-child(odd) > td {
+  background: #111827;
+}
+
+.dark-mode .app-content .ant-table-wrapper .ant-table-tbody > tr:nth-child(even) > td {
+  background: #0f172a;
+}
+
+.dark-mode .app-content .ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #1e293b !important;
+}
+
+.dark-mode .dashboard-line-label-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dark-mode .dashboard-status-row {
+  border-color: #334155;
+}
+
+.dark-mode .dashboard-bar-stack {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.3));
+}
+
+.theme-toggle-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  transform: rotate(20deg);
+  background: rgba(100, 150, 200, 0.15) !important;
+}
+
+/* Dark mode debt severity badges */
+.dark-mode .debt-badge-critical { background: rgba(239, 68, 68, 0.15); }
+.dark-mode .debt-badge-warning  { background: rgba(234, 179, 8, 0.15); }
+.dark-mode .debt-badge-mild     { background: rgba(34, 197, 94, 0.12); }
+
+/* Debt management table row highlights */
+.debt-row-critical td {
+  background: rgba(255, 77, 79, 0.04) !important;
+}
+.debt-row-warning td {
+  background: rgba(250, 173, 20, 0.04) !important;
+}
+.debt-row-critical:hover td {
+  background: rgba(255, 77, 79, 0.09) !important;
+}
+.debt-row-warning:hover td {
+  background: rgba(250, 173, 20, 0.09) !important;
+}
+
+/* Audit log row highlights */
+.log-row-error td {
+  background: rgba(255, 77, 79, 0.04) !important;
+}
+.log-row-warning td {
+  background: rgba(250, 140, 22, 0.04) !important;
+}
+
+/* Household history – PAID row highlight (eligible for publish) */
+.household-history-paid-row td {
+  background: rgba(10, 91, 216, 0.03) !important;
+  border-left: 3px solid #0a5bd8;
+}
+.household-history-paid-row:hover td {
+  background: rgba(10, 91, 216, 0.07) !important;
+}
+
+
+

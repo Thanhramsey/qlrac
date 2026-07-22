@@ -456,3 +456,25 @@ export interface DashboardOverviewResponse {
     unpaidPercentage: number
   }>
 }
+
+export interface DebtSummaryItem {
+  householdId: number
+  maHoDan: string
+  tenChuHo: string
+  diaChi: string
+  tuyenThuRac: {
+    id: number
+    maTuyen: string
+    tenTuyen: string
+  } | null
+  overdueCount: number
+  unpaidCount: number
+  totalDebt: number
+  lastPaidAt: string | null
+}
+
+export interface DebtSummaryResponse {
+  data: DebtSummaryItem[]
+  pagination: PaginationMeta
+}
+

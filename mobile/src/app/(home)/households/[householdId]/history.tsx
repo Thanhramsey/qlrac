@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,8 +15,99 @@ import axios from 'axios';
 import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
+import { printerService } from '@/services/printer-service';
+import { API_BASE_URL } from '@/constants/api-base-url';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function buildReceiptHtml(invoice: any, payload?: any) {
+  const total = Number(invoice.tongTien) + Number(invoice.thue);
+  const isInvoicePublished =
+    invoice.invoicePublishStatus === 'SUCCESS' ||
+    Boolean(invoice.invoiceSerial) ||
+    Boolean(invoice.invoiceFkey);
+
+  const portalUrl = payload?.portalUrl || 'http://ankhe.vnptportal.vn';
+  const qrThanhToan = payload?.qrThanhToan;
+  const qrImageUrl = (qrThanhToan && qrThanhToan.startsWith('http'))
+    ? qrThanhToan
+    : (payload?.companyAccountNumber
+        ? `https://img.vietqr.io/image/VietinBank-${payload.companyAccountNumber.replace(/[^a-zA-Z0-9]/g, '')}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(`TT TIEN RAC ${invoice.household?.maHoDan || ''}`.trim())}`
+        : (qrThanhToan ? (qrThanhToan.startsWith('/') ? `${API_BASE_URL}${qrThanhToan}` : qrThanhToan) : ''));
+
+  return `<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>${isInvoicePublished ? 'Hóa đơn điện tử' : 'Phiếu thu'} ${invoice.kyHoaDon}</title>
+    <style>
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 12px; color: #1e2f2a; background: #ffffff; }
+      .receipt { border: 1px solid #cce3de; border-radius: 12px; padding: 16px; max-width: 480px; margin: 0 auto; }
+      .header { text-align: center; border-bottom: 2px dashed #0d8a6a; padding-bottom: 12px; margin-bottom: 12px; }
+      .company-name { font-size: 16px; font-weight: bold; color: #0d8a6a; text-transform: uppercase; }
+      .company-sub { font-size: 11px; color: #557067; margin-top: 2px; }
+      .title { font-size: 18px; font-weight: 800; color: #0d8a6a; text-transform: uppercase; margin: 10px 0 2px 0; }
+      .title-sub { font-size: 12px; color: #475569; font-weight: 600; }
+      .row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+      .label { color: #557067; font-weight: 600; }
+      .value { color: #1e2f2a; font-weight: 700; text-align: right; }
+      .divider { border-top: 1px dashed #d0e3dd; margin: 10px 0; }
+      .total-row { display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; color: #0d8a6a; padding: 8px 0; border-top: 1.5px solid #0d8a6a; border-bottom: 1.5px solid #0d8a6a; margin: 10px 0; }
+      .footer { text-align: center; margin-top: 12px; }
+      .qr-img { width: 140px; height: 140px; border-radius: 8px; border: 1px solid #e2e8f0; padding: 4px; background: #fff; margin-top: 6px; }
+      .lookup-box { margin-top: 8px; font-size: 11px; color: #334155; line-height: 1.4; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <div class="receipt">
+      <div class="header">
+        <div class="company-name">${payload?.companyName || 'CÔNG TRÌNH ĐÔ THỊ AN KHÊ'}</div>
+        <div class="company-sub">${payload?.companyAddress || ''}</div>
+        <div class="company-sub">ĐIỆN THOẠI: ${payload?.companyPhone || ''} • STK: ${payload?.companyAccountNumber || ''}</div>
+        <div class="title">${isInvoicePublished ? 'HÓA ĐƠN ĐIỆN TỬ' : 'PHIẾU THU TIỀN RÁC'}</div>
+        <div class="title-sub">Kỳ hóa đơn: ${invoice.mergedPeriodCodes ?? invoice.kyHoaDon}</div>
+      </div>
+
+      <div class="row"><span class="label">Mã hộ dân:</span><span class="value">${invoice.household?.maHoDan || ''}</span></div>
+      <div class="row"><span class="label">Tên hộ dân:</span><span class="value">${invoice.household?.tenChuHo || ''}</span></div>
+      <div class="row"><span class="label">Địa chỉ:</span><span class="value">${invoice.household?.diaChi || ''}</span></div>
+      <div class="row"><span class="label">Số điện thoại:</span><span class="value">${invoice.household?.soDienThoai || ''}</span></div>
+      <div class="row"><span class="label">Loại dịch vụ:</span><span class="value">${invoice.household?.serviceCatalog?.tenDichVu || 'Dịch vụ thu gom rác'}</span></div>
+
+      <div class="divider"></div>
+
+      <div class="row"><span class="label">Tiền dịch vụ:</span><span class="value">${formatCurrency(Number(invoice.tongTien))}</span></div>
+      <div class="row"><span class="label">Thuế VAT:</span><span class="value">${formatCurrency(Number(invoice.thue))}</span></div>
+
+      <div class="total-row">
+        <span>TỔNG TIỀN THANH TOÁN:</span>
+        <span>${formatCurrency(total)}</span>
+      </div>
+
+      <div class="row"><span class="label">Ngày thu tiền:</span><span class="value">${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleString('vi-VN') : '---'}</span></div>
+      <div class="row"><span class="label">Người thu tiền:</span><span class="value">${invoice.collectedByName || '---'}</span></div>
+
+      <div class="footer">
+        ${qrImageUrl ? `<img src="${qrImageUrl}" class="qr-img" alt="QR Code" /><div style="font-size: 11px; font-weight: bold; color: #0d8a6a; margin-top: 4px;">QR THANH TOÁN</div>` : ''}
+        ${isInvoicePublished ? `
+          <div class="lookup-box">
+            Tra cứu hóa đơn (${invoice.invoiceSerial || '---'}) tại: <a href="${portalUrl}" target="_blank" style="color: #0d8a6a; font-weight: bold;">${portalUrl.replace(/^https?:\/\//, '')}</a> với mã FKey: <strong>${invoice.invoiceFkey || '---'}</strong>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  </body>
+</html>`;
+}
 
 interface HouseholdHistoryInvoice {
   id: number;
@@ -26,6 +118,8 @@ interface HouseholdHistoryInvoice {
   paymentDate: string | null;
   paymentNote: string | null;
   invoicePublishStatus: string | null;
+  invoiceSerial?: string | null;
+  invoiceFkey?: string | null;
   mergedPeriodCodes: string | null;
   publishedByName: string | null;
   collectedByName: string | null;
@@ -46,13 +140,6 @@ interface HouseholdHistoryResponse {
   invoices: HouseholdHistoryInvoice[];
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function getStatusLabel(status: PaymentStatus) {
   if (status === 'PUBLISHED') {
@@ -95,8 +182,7 @@ export default function HouseholdHistoryRoute() {
 
   const loadHistory = useCallback(async () => {
     if (!Number.isInteger(householdId) || householdId <= 0) {
-      Alert.alert('Lỗi', 'Hộ dân không hợp lệ');
-      router.back();
+      showAlert('Lỗi', 'Hộ dân không hợp lệ', () => router.back());
       return;
     }
 
@@ -117,7 +203,7 @@ export default function HouseholdHistoryRoute() {
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
       if (status === 401 || status === 403) {
-        Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
+        showAlert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
         setAccessToken(null);
         await clearAuthSession();
         setSession(null);
@@ -129,8 +215,7 @@ export default function HouseholdHistoryRoute() {
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'Không tải được lịch sử hộ dân'
           : 'Không tải được lịch sử hộ dân';
-      Alert.alert('Lỗi', message);
-      router.back();
+      showAlert('Lỗi', message, () => router.back());
     } finally {
       setLoading(false);
     }
@@ -140,63 +225,122 @@ export default function HouseholdHistoryRoute() {
     void loadHistory();
   }, [loadHistory]);
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmConfig({
+      visible: true,
+      ...config,
+    });
+  };
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const selectedCount = selectedInvoiceIds.length;
 
   const toggleSelected = (invoiceId: number) => {
-    const invoice = data?.invoices.find((item) => item.id === invoiceId);
-    if (invoice && !isInvoicePublishable(invoice)) {
-      return;
-    }
-
     setSelectedInvoiceIds((current) =>
       current.includes(invoiceId) ? current.filter((item) => item !== invoiceId) : [...current, invoiceId],
     );
   };
 
   const submitCollect = () => {
-    if (selectedCount === 0) {
-      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một kỳ để thu tiền');
+    const uncollectedIds = (data?.invoices ?? [])
+      .filter((item) => selectedInvoiceIds.includes(item.id) && item.trangThaiThanhToan !== 'PAID' && item.trangThaiThanhToan !== 'PUBLISHED')
+      .map((item) => item.id);
+
+    if (uncollectedIds.length === 0) {
+      showAlert('Thông báo', 'Vui lòng chọn ít nhất một kỳ chưa thu để thu tiền');
       return;
     }
 
-    Alert.alert('Xác nhận thu tiền', `Bạn có đồng ý thu ${selectedCount} kỳ đã chọn không?`, [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Đồng ý',
-        onPress: () => {
-          void collectSelected();
-        },
+    showConfirm({
+      title: 'Xác nhận thu tiền',
+      message: `Bạn có đồng ý xác nhận thu tiền cho ${uncollectedIds.length} kỳ chưa thu đã chọn không?`,
+      confirmText: 'Thu tiền',
+      type: 'success',
+      icon: '💰',
+      onConfirm: () => {
+        hideConfirm();
+        void collectSelected(uncollectedIds);
       },
-    ]);
+    });
   };
 
   const submitPublish = () => {
-    if (selectedCount === 0) {
-      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một kỳ để xuất bù');
+    const publishableIds = (data?.invoices ?? [])
+      .filter((item) => selectedInvoiceIds.includes(item.id) && isInvoicePublishable(item))
+      .map((item) => item.id);
+
+    if (publishableIds.length === 0) {
+      showAlert('Thông báo', 'Vui lòng chọn ít nhất một kỳ chưa xuất hóa đơn để xuất bù');
       return;
     }
 
-    Alert.alert('Xác nhận xuất hóa đơn bù', `Bạn có đồng ý xuất hóa đơn bù cho ${selectedCount} kỳ đã chọn không?`, [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Đồng ý',
-        onPress: () => {
-          void publishSelected();
-        },
+    showConfirm({
+      title: 'Xác nhận xuất hóa đơn bù',
+      message: `Bạn có đồng ý xuất hóa đơn bù cho ${publishableIds.length} kỳ đã chọn không?`,
+      confirmText: 'Xuất hóa đơn',
+      type: 'primary',
+      icon: '🧾',
+      onConfirm: () => {
+        hideConfirm();
+        void publishSelected(publishableIds);
       },
-    ]);
+    });
   };
 
-  const collectSelected = async () => {
+  const collectSelected = async (targetIds?: number[]) => {
+    const idsToCollect = targetIds ?? selectedInvoiceIds;
     setActionLoading(true);
     try {
       const formData = new FormData();
-      formData.append('invoiceIds', JSON.stringify(selectedInvoiceIds));
+      formData.append('invoiceIds', JSON.stringify(idsToCollect));
       const response = await httpClient.post('/invoices/collect', formData, {
         timeout: 120000,
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      Alert.alert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
+      showAlert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
       setSelectedInvoiceIds([]);
       await loadHistory();
     } catch (error) {
@@ -207,30 +351,22 @@ export default function HouseholdHistoryRoute() {
             ? 'Yêu cầu thu tiền đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Thu tiền thất bại'
         : 'Thu tiền thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const publishSelected = async () => {
-    const publishableIds = (data?.invoices ?? [])
-      .filter((item) => selectedInvoiceIds.includes(item.id) && isInvoicePublishable(item))
-      .map((item) => item.id);
-
-    if (publishableIds.length === 0) {
-      Alert.alert('Thông báo', 'Không có kỳ hợp lệ để xuất bù');
-      return;
-    }
-
+  const publishSelected = async (targetIds?: number[]) => {
+    const idsToPublish = targetIds ?? selectedInvoiceIds;
     setActionLoading(true);
     try {
       const response = await httpClient.post(
         '/invoices/publish',
-        { invoiceIds: publishableIds },
+        { invoiceIds: idsToPublish },
         { timeout: 120000 },
       );
-      Alert.alert('Thông báo', response.data?.message ?? 'Xuất hóa đơn bù thành công');
+      showAlert('Thông báo', response.data?.message ?? 'Xuất hóa đơn bù thành công');
       setSelectedInvoiceIds([]);
       await loadHistory();
     } catch (error) {
@@ -241,7 +377,72 @@ export default function HouseholdHistoryRoute() {
             ? 'Yêu cầu xuất hóa đơn bù đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Xuất hóa đơn bù thất bại'
         : 'Xuất hóa đơn bù thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const printReceiptSelected = async (specificId?: number) => {
+    const idsToPrint = specificId ? [specificId] : selectedInvoiceIds;
+    if (idsToPrint.length === 0) {
+      showAlert('Thông báo', 'Vui lòng chọn ít nhất một kỳ để in phiếu');
+      return;
+    }
+
+    if (Platform.OS !== 'web') {
+      const isConnected = printerService.getIsConnected();
+      if (!isConnected) {
+        showConfirm({
+          title: 'Chưa kết nối máy in',
+          message: 'Bạn có muốn kết nối với máy in nhiệt Bluetooth RI-5809DD không?',
+          confirmText: 'Kết nối ngay',
+          cancelText: 'Bỏ qua',
+          type: 'info',
+          icon: '🖨️',
+          onConfirm: () => {
+            hideConfirm();
+            router.push('/printer-connection' as never);
+          },
+        });
+        return;
+      }
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await httpClient.get<any>('/invoices/receipt', {
+        params: { invoiceIds: idsToPrint.join(',') },
+      });
+
+      const invoice = response.data?.invoices?.[0];
+      if (!invoice) {
+        showAlert('Lỗi', 'Không có dữ liệu phiếu thu để in');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        const popup = globalThis.open('', '_blank');
+        if (!popup) {
+          showAlert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để in phiếu.');
+          return;
+        }
+
+        popup.document.write(buildReceiptHtml(invoice, response.data));
+        popup.document.close();
+      } else {
+        await printerService.printReceipt(response.data);
+        showAlert(
+          'In thành công',
+          'Đã in phiếu thu thành công trên máy in nhiệt Bluetooth RI-5809DD!',
+        );
+      }
+    } catch (error) {
+      const message =
+        axios.isAxiosError(error)
+          ? error.response?.data?.message ?? 'In phiếu thu thất bại'
+          : 'In phiếu thu thất bại';
+      showAlert('Lỗi', message);
     } finally {
       setActionLoading(false);
     }
@@ -293,13 +494,19 @@ export default function HouseholdHistoryRoute() {
             onPress={submitCollect}
             disabled={actionLoading}
             style={({ pressed }) => [styles.primaryButton, styles.collectButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>◉ Thu tiền đã chọn</Text>
+            <Text style={styles.primaryButtonText}>💰 Thu tiền đã chọn</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void printReceiptSelected()}
+            disabled={actionLoading}
+            style={({ pressed }) => [styles.primaryButton, styles.printButton, pressed && styles.pressed]}>
+            <Text style={styles.primaryButtonText}>🖨 In phiếu đã chọn {selectedCount > 0 ? `(${selectedCount})` : ''}</Text>
           </Pressable>
           <Pressable
             onPress={submitPublish}
             disabled={actionLoading}
             style={({ pressed }) => [styles.primaryButton, styles.publishButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>◈ Xuất hóa đơn bù</Text>
+            <Text style={styles.primaryButtonText}>🧾 Xuất hóa đơn bù</Text>
           </Pressable>
         </View>
       </View>
@@ -312,7 +519,22 @@ export default function HouseholdHistoryRoute() {
           {data.invoices.map((invoice) => {
             const total = toNumber(invoice.tongTien) + toNumber(invoice.thue);
             const selected = selectedInvoiceIds.includes(invoice.id);
-            const publishable = isInvoicePublishable(invoice);
+
+            const isPublished =
+              invoice.trangThaiThanhToan === 'PUBLISHED' ||
+              invoice.invoicePublishStatus === 'SUCCESS' ||
+              Boolean(invoice.invoiceFkey) ||
+              Boolean(invoice.invoiceSerial);
+            const isPaid = invoice.trangThaiThanhToan === 'PAID' && !isPublished;
+            const isOverdue = invoice.trangThaiThanhToan === 'OVERDUE' && !isPublished;
+
+            const statusLabel = isPublished
+              ? 'Đã xuất HĐ'
+              : isPaid
+                ? 'Đã thu'
+                : isOverdue
+                  ? 'Quá hạn'
+                  : 'Chưa thu';
 
             return (
               <Pressable
@@ -320,7 +542,6 @@ export default function HouseholdHistoryRoute() {
                 onPress={() => toggleSelected(invoice.id)}
                 style={({ pressed }) => [
                   styles.invoiceCard,
-                  !publishable && styles.invoiceCardDisabled,
                   selected && styles.invoiceCardSelected,
                   pressed && styles.pressedCard,
                 ]}>
@@ -329,9 +550,9 @@ export default function HouseholdHistoryRoute() {
                     <Text style={styles.invoicePeriod}>Kỳ {invoice.kyHoaDon}</Text>
                     <Text style={styles.invoiceMoney}>{formatCurrency(total)}</Text>
                   </View>
-                  <View style={styles.selectionBadge}>
-                    <Text style={styles.selectionBadgeText}>
-                      {!publishable ? 'Đã phát hành' : selected ? 'Đã chọn' : 'Chạm để chọn'}
+                  <View style={[styles.selectionBadge, selected && styles.selectionBadgeSelected]}>
+                    <Text style={[styles.selectionBadgeText, selected && styles.selectionBadgeTextSelected]}>
+                      {selected ? '✓ Đã chọn' : 'Chạm để chọn'}
                     </Text>
                   </View>
                 </View>
@@ -340,15 +561,15 @@ export default function HouseholdHistoryRoute() {
                   <View
                     style={[
                       styles.statusChip,
-                      invoice.trangThaiThanhToan === 'PAID'
-                        ? styles.statusChipPaid
-                        : invoice.trangThaiThanhToan === 'PUBLISHED'
-                          ? styles.statusChipPublished
-                          : invoice.trangThaiThanhToan === 'OVERDUE'
+                      isPublished
+                        ? styles.statusChipPublished
+                        : isPaid
+                          ? styles.statusChipPaid
+                          : isOverdue
                             ? styles.statusChipOverdue
                             : styles.statusChipUnpaid,
                     ]}>
-                    <Text style={styles.statusChipText}>Trạng thái: {getStatusLabel(invoice.trangThaiThanhToan)}</Text>
+                    <Text style={styles.statusChipText}>Trạng thái: {statusLabel}</Text>
                   </View>
                   <Text style={styles.invoiceMeta}>Phát hành: {getPublishStatusLabel(invoice.invoicePublishStatus)}</Text>
                 </View>
@@ -359,11 +580,34 @@ export default function HouseholdHistoryRoute() {
                 <Text style={styles.invoiceMeta}>Người xuất: {invoice.publishedByName ?? '---'}</Text>
                 <Text style={styles.invoiceMeta}>Người thu: {invoice.collectedByName ?? '---'}</Text>
                 {invoice.paymentNote ? <Text style={styles.invoiceNote}>Ghi chú: {invoice.paymentNote}</Text> : null}
+
+                <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      void printReceiptSelected(invoice.id);
+                    }}
+                    style={({ pressed }) => [styles.cardPrintBtn, pressed && styles.pressed]}>
+                    <Text style={styles.cardPrintBtnText}>🖨 In phiếu thu</Text>
+                  </Pressable>
+                </View>
               </Pressable>
             );
           })}
         </View>
       </View>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </ScrollView>
   );
 }
@@ -450,6 +694,9 @@ const styles = StyleSheet.create({
   collectButton: {
     backgroundColor: '#1f9e63',
   },
+  printButton: {
+    backgroundColor: '#6366f1',
+  },
   publishButton: {
     backgroundColor: '#2f6ea8',
   },
@@ -530,10 +777,29 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     backgroundColor: '#ebf7f2',
   },
+  selectionBadgeSelected: {
+    backgroundColor: '#0d8a6a',
+  },
   selectionBadgeText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#0b4f3f',
+  },
+  selectionBadgeTextSelected: {
+    color: '#ffffff',
+  },
+  cardPrintBtn: {
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  cardPrintBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1d4ed8',
   },
   statusChip: {
     borderRadius: 999,

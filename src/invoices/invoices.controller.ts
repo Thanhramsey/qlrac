@@ -51,6 +51,7 @@ export class InvoicesController {
     @Query('tuyenThuRacId') tuyenThuRacId?: string,
     @Query('serviceCatalogIds') serviceCatalogIds?: string,
     @Query('serviceCatalogId') serviceCatalogId?: string,
+    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('keyword') keyword?: string,
   ) {
     const parseNumberList = (raw?: string) =>
@@ -75,6 +76,7 @@ export class InvoicesController {
       kyHoaDons: kyHoaDonList,
       tuyenThuRacIds: routeIdList,
       serviceCatalogIds: serviceIdList,
+      trangThaiThanhToan: (trangThaiThanhToan?.trim() as any) || undefined,
       keyword,
     });
   }

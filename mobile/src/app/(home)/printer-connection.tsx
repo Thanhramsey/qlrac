@@ -15,10 +15,62 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { printerService, usePrinterStatus, BluetoothDevice } from '@/services/printer-service';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
 
 export default function PrinterConnectionRoute() {
   const router = useRouter();
   const { isConnected, connectedDevice, isScanning, scannedDevices } = usePrinterStatus();
+
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmConfig({
+      visible: true,
+      ...config,
+    });
+  };
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
   
   // Animation for scanning pulse
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -69,7 +121,7 @@ export default function PrinterConnectionRoute() {
     try {
       await printerService.scanDevices();
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message || 'Không thể khởi động quét Bluetooth.');
+      showAlert('Lỗi', e.message || 'Không thể khởi động quét Bluetooth.');
     }
   };
 
@@ -77,34 +129,32 @@ export default function PrinterConnectionRoute() {
     try {
       const success = await printerService.connectDevice(device);
       if (success) {
-        Alert.alert('Thành công', `Đã kết nối với máy in ${device.name}`);
+        showAlert('Thành công', `Đã kết nối với máy in ${device.name}`);
       }
     } catch (e) {
-      Alert.alert('Lỗi kết nối', `Không thể kết nối đến thiết bị ${device.name}`);
+      showAlert('Lỗi kết nối', `Không thể kết nối đến thiết bị ${device.name}`);
     }
   };
 
   const handleDisconnect = async () => {
-    Alert.alert(
-      'Xác nhận ngắt kết nối',
-      'Bạn có đồng ý ngắt kết nối với máy in hiện tại không?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Ngắt kết nối',
-          style: 'destructive',
-          onPress: async () => {
-            await printerService.disconnectDevice();
-            Alert.alert('Thông báo', 'Đã ngắt kết nối máy in');
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Xác nhận ngắt kết nối',
+      message: 'Bạn có đồng ý ngắt kết nối với máy in hiện tại không?',
+      confirmText: 'Ngắt kết nối',
+      cancelText: 'Hủy',
+      type: 'danger',
+      icon: '🔌',
+      onConfirm: async () => {
+        hideConfirm();
+        await printerService.disconnectDevice();
+        showAlert('Thông báo', 'Đã ngắt kết nối máy in');
+      },
+    });
   };
 
   const handleTestPrint = async () => {
     if (!isConnected) {
-      Alert.alert('Chưa kết nối', 'Vui lòng kết nối với máy in trước khi in thử.');
+      showAlert('Chưa kết nối', 'Vui lòng kết nối với máy in trước khi in thử.');
       return;
     }
 
@@ -141,13 +191,12 @@ export default function PrinterConnectionRoute() {
       };
 
       await printerService.printReceipt(mockPayload);
-      Alert.alert(
+      showAlert(
         'Đang in...',
         'Lệnh in thử đã được gửi. Kiểm tra máy in thermal RI-5809DD.',
-        [{ text: 'OK' }]
       );
     } catch (e) {
-      Alert.alert('Lỗi in ấn', 'In thử nghiệm thất bại.');
+      showAlert('Lỗi in ấn', 'In thử nghiệm thất bại.');
     }
   };
 
@@ -280,6 +329,19 @@ export default function PrinterConnectionRoute() {
           </Text>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        hideCancelButton={confirmConfig.hideCancelButton}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </SafeAreaView>
   );
 }

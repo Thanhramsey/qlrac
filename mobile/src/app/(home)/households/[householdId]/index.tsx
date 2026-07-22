@@ -20,6 +20,7 @@ import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
 import { printerService } from '@/services/printer-service';
 import { API_BASE_URL } from '@/constants/api-base-url';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
@@ -226,10 +227,60 @@ export default function HouseholdDetailRoute() {
   const [actionLabel, setActionLabel] = useState<string>('');
   const [data, setData] = useState<HouseholdHistoryResponse | null>(null);
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmConfig({
+      visible: true,
+      ...config,
+    });
+  };
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const loadDetail = useCallback(async () => {
     if (!Number.isInteger(householdId) || householdId <= 0) {
-      Alert.alert('Lỗi', 'Hộ dân không hợp lệ');
-      router.back();
+      showAlert('Lỗi', 'Hộ dân không hợp lệ', () => router.back());
       return;
     }
 
@@ -250,7 +301,7 @@ export default function HouseholdDetailRoute() {
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
       if (status === 401 || status === 403) {
-        Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
+        showAlert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại.');
         setAccessToken(null);
         await clearAuthSession();
         setSession(null);
@@ -262,8 +313,7 @@ export default function HouseholdDetailRoute() {
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'Không tải được chi tiết hộ dân'
           : 'Không tải được chi tiết hộ dân';
-      Alert.alert('Lỗi', message);
-      router.back();
+      showAlert('Lỗi', message, () => router.back());
     } finally {
       setLoading(false);
     }
@@ -298,7 +348,7 @@ export default function HouseholdDetailRoute() {
 
   const confirmPublish = (invoice: HouseholdHistoryInvoice) => {
     if (invoice.invoicePublishStatus === 'SUCCESS') {
-      Alert.alert('Thông báo', 'Hóa đơn đã phát hành, không thể xuất lại');
+      showAlert('Thông báo', 'Hóa đơn đã phát hành, không thể xuất lại');
       return;
     }
 
@@ -310,19 +360,17 @@ export default function HouseholdDetailRoute() {
       return;
     }
 
-    Alert.alert(
-      'Xác nhận xuất hóa đơn',
-      `Bạn có đồng ý xuất hóa đơn kỳ ${invoice.kyHoaDon} cho hộ này không?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đồng ý',
-          onPress: () => {
-            void publishInvoice(invoice.id);
-          },
-        },
-      ],
-    );
+    showConfirm({
+      title: 'Xác nhận xuất hóa đơn',
+      message: `Bạn có đồng ý xuất hóa đơn kỳ ${invoice.kyHoaDon} cho hộ này không?`,
+      confirmText: 'Xuất hóa đơn',
+      type: 'primary',
+      icon: '🧾',
+      onConfirm: () => {
+        hideConfirm();
+        void publishInvoice(invoice.id);
+      },
+    });
   };
 
   const confirmCollect = (invoice: HouseholdHistoryInvoice) => {
@@ -334,19 +382,17 @@ export default function HouseholdDetailRoute() {
       return;
     }
 
-    Alert.alert(
-      'Xác nhận thu tiền',
-      `Bạn có đồng ý xác nhận thu tiền kỳ ${invoice.kyHoaDon} không?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đồng ý',
-          onPress: () => {
-            void collectInvoice(invoice.id);
-          },
-        },
-      ],
-    );
+    showConfirm({
+      title: 'Xác nhận thu tiền',
+      message: `Bạn có đồng ý xác nhận thu tiền kỳ ${invoice.kyHoaDon} không?`,
+      confirmText: 'Thu tiền',
+      type: 'success',
+      icon: '💰',
+      onConfirm: () => {
+        hideConfirm();
+        void collectInvoice(invoice.id);
+      },
+    });
   };
 
   const publishInvoice = async (invoiceId: number) => {
@@ -354,7 +400,7 @@ export default function HouseholdDetailRoute() {
     setActionLabel('Đang xuất hóa đơn...');
     try {
       const response = await httpClient.post('/invoices/publish', { invoiceIds: [invoiceId] }, { timeout: 120000 });
-      Alert.alert('Thông báo', response.data?.message ?? 'Đã xuất hóa đơn');
+      showAlert('Thông báo', response.data?.message ?? 'Đã xuất hóa đơn');
       await loadDetail();
     } catch (error) {
       const message = axios.isAxiosError(error)
@@ -364,7 +410,7 @@ export default function HouseholdDetailRoute() {
             ? 'Yêu cầu xuất hóa đơn đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Xuất hóa đơn thất bại'
         : 'Xuất hóa đơn thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
       setActionLabel('');
@@ -383,7 +429,7 @@ export default function HouseholdDetailRoute() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      Alert.alert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
+      showAlert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
       await loadDetail();
     } catch (error) {
       const message = axios.isAxiosError(error)
@@ -393,7 +439,7 @@ export default function HouseholdDetailRoute() {
             ? 'Yêu cầu thu tiền đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Thu tiền thất bại'
         : 'Thu tiền thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
       setActionLabel('');
@@ -415,13 +461,13 @@ export default function HouseholdDetailRoute() {
       if (Platform.OS === 'web' && payload.content) {
         const popup = globalThis.open('', '_blank');
         if (!popup) {
-          Alert.alert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để mở hóa đơn.');
+          showAlert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để mở hóa đơn.');
           return;
         }
 
         popup.document.write(payload.content);
         popup.document.close();
-        Alert.alert('Thông báo', 'Đã mở hóa đơn trên trình duyệt');
+        showAlert('Thông báo', 'Đã mở hóa đơn trên trình duyệt');
         return;
       }
 
@@ -448,17 +494,17 @@ export default function HouseholdDetailRoute() {
           });
         }
 
-        Alert.alert('Thông báo', 'Đã tạo file PDF hóa đơn, bạn có thể lưu về điện thoại');
+        showAlert('Thông báo', 'Đã tạo file PDF hóa đơn, bạn có thể lưu về điện thoại');
         return;
       }
 
-      Alert.alert('Thông báo', 'Không nhận được dữ liệu hóa đơn hợp lệ');
+      showAlert('Thông báo', 'Không nhận được dữ liệu hóa đơn hợp lệ');
     } catch (error) {
       const message =
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'Tải hóa đơn thất bại'
           : 'Tải hóa đơn thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
       setActionLabel('');
@@ -469,22 +515,18 @@ export default function HouseholdDetailRoute() {
     if (Platform.OS !== 'web') {
       const isConnected = printerService.getIsConnected();
       if (!isConnected) {
-        Alert.alert(
-          'Chưa kết nối máy in',
-          'Bạn có muốn kết nối với máy in nhiệt Bluetooth RI-5809DD không?',
-          [
-            {
-              text: 'Không',
-              style: 'cancel',
-            },
-            {
-              text: 'Có',
-              onPress: () => {
-                router.push('/printer-connection' as never);
-              },
-            },
-          ]
-        );
+        showConfirm({
+          title: 'Chưa kết nối máy in',
+          message: 'Bạn có muốn kết nối với máy in nhiệt Bluetooth RI-5809DD không?',
+          confirmText: 'Kết nối ngay',
+          cancelText: 'Bỏ qua',
+          type: 'info',
+          icon: '🖨️',
+          onConfirm: () => {
+            hideConfirm();
+            router.push('/printer-connection' as never);
+          },
+        });
         return;
       }
     }
@@ -498,14 +540,14 @@ export default function HouseholdDetailRoute() {
 
       const invoice = response.data?.invoices?.[0];
       if (!invoice) {
-        Alert.alert('Lỗi', 'Không có dữ liệu phiếu thu để in');
+        showAlert('Lỗi', 'Không có dữ liệu phiếu thu để in');
         return;
       }
 
       if (Platform.OS === 'web') {
         const popup = globalThis.open('', '_blank');
         if (!popup) {
-          Alert.alert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để in phiếu.');
+          showAlert('Lỗi', 'Trình duyệt đang chặn popup. Vui lòng cho phép popup để in phiếu.');
           return;
         }
 
@@ -513,18 +555,14 @@ export default function HouseholdDetailRoute() {
         popup.document.close();
       } else {
         await printerService.printReceipt(response.data);
-        Alert.alert(
-          'In thành công',
-          'Đã in phiếu thu thành công trên máy in nhiệt Bluetooth RI-5809DD!',
-          [{ text: 'Đóng' }]
-        );
+        showAlert('In thành công', 'Đã in phiếu thu thành công trên máy in nhiệt Bluetooth RI-5809DD!');
       }
     } catch (error) {
       const message =
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'In phiếu thu thất bại'
           : 'In phiếu thu thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
       setActionLabel('');
@@ -555,17 +593,17 @@ export default function HouseholdDetailRoute() {
 
       const result = response.data?.results?.[0];
       if (result?.success) {
-        Alert.alert('Thành công', 'Đồng bộ hóa đơn thành công!');
+        showAlert('Thành công', 'Đồng bộ hóa đơn thành công!');
         void loadDetail();
       } else {
-        Alert.alert('Thất bại', result?.message || 'Đồng bộ hóa đơn thất bại');
+        showAlert('Thất bại', result?.message || 'Đồng bộ hóa đơn thất bại');
       }
     } catch (error) {
       const message =
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'Đồng bộ hóa đơn thất bại'
           : 'Đồng bộ hóa đơn thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
       setActionLabel('');
@@ -619,7 +657,22 @@ export default function HouseholdDetailRoute() {
         <View style={styles.invoiceList}>
           {visibleInvoices.map((invoice) => {
             const total = toNumber(invoice.tongTien) + toNumber(invoice.thue);
-            const isPublished = invoice.invoicePublishStatus === 'SUCCESS';
+            const isPublished =
+              invoice.trangThaiThanhToan === 'PUBLISHED' ||
+              invoice.invoicePublishStatus === 'SUCCESS' ||
+              Boolean(invoice.invoiceFkey) ||
+              Boolean(invoice.invoiceSerial);
+            const isPaid = invoice.trangThaiThanhToan === 'PAID' && !isPublished;
+            const isOverdue = invoice.trangThaiThanhToan === 'OVERDUE' && !isPublished;
+
+            const statusLabel = isPublished
+              ? 'Đã xuất HĐ'
+              : isPaid
+                ? 'Đã thu'
+                : isOverdue
+                  ? 'Quá hạn'
+                  : 'Chưa thu';
+
             return (
               <View key={invoice.id} style={styles.invoiceCard}>
                 <View style={styles.invoiceTopRow}>
@@ -630,15 +683,15 @@ export default function HouseholdDetailRoute() {
                   <View
                     style={[
                       styles.statusChip,
-                      invoice.trangThaiThanhToan === 'PAID'
-                        ? styles.statusChipPaid
-                        : invoice.trangThaiThanhToan === 'PUBLISHED'
-                          ? styles.statusChipPublished
-                          : invoice.trangThaiThanhToan === 'OVERDUE'
+                      isPublished
+                        ? styles.statusChipPublished
+                        : isPaid
+                          ? styles.statusChipPaid
+                          : isOverdue
                             ? styles.statusChipOverdue
                             : styles.statusChipUnpaid,
                     ]}>
-                    <Text style={styles.statusText}>{getStatusLabel(invoice.trangThaiThanhToan)}</Text>
+                    <Text style={styles.statusText}>{statusLabel}</Text>
                   </View>
                 </View>
 
@@ -655,6 +708,25 @@ export default function HouseholdDetailRoute() {
                 {invoice.paymentNote ? <Text style={styles.invoiceNote}>Ghi chú: {invoice.paymentNote}</Text> : null}
 
                 <View style={styles.invoiceActions}>
+                  {/* 1. Thu tiền */}
+                  <Pressable
+                    onPress={() => confirmCollect(invoice)}
+                    disabled={actionLoadingId === invoice.id}
+                    style={({ pressed }) => [styles.actionButton, styles.actionButtonCollect, pressed && styles.pressed]}>
+                    <Text style={styles.actionButtonText}>
+                      {actionLoadingId === invoice.id ? 'Đang xử lý...' : '💰 Thu tiền'}
+                    </Text>
+                  </Pressable>
+
+                  {/* 2. In phiếu thu */}
+                  <Pressable
+                    onPress={() => void printReceipt(invoice.id)}
+                    disabled={actionLoadingId === invoice.id}
+                    style={({ pressed }) => [styles.actionButton, styles.actionButtonPrint, pressed && styles.pressed]}>
+                    <Text style={styles.actionButtonText}>🖨 In phiếu thu</Text>
+                  </Pressable>
+
+                  {/* 3. Xuất hóa đơn */}
                   <Pressable
                     onPress={() => confirmPublish(invoice)}
                     disabled={isPublished || actionLoadingId === invoice.id}
@@ -668,32 +740,22 @@ export default function HouseholdDetailRoute() {
                       {isPublished ? 'Đã phát hành' : actionLoadingId === invoice.id ? 'Đang xử lý...' : '🧾 Xuất hóa đơn'}
                     </Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => confirmCollect(invoice)}
-                    disabled={actionLoadingId === invoice.id}
-                    style={({ pressed }) => [styles.actionButton, styles.actionButtonCollect, pressed && styles.pressed]}>
-                    <Text style={styles.actionButtonText}>
-                      {actionLoadingId === invoice.id ? 'Đang xử lý...' : '💰 Thu tiền'}
-                    </Text>
-                  </Pressable>
+
+                  {/* 4. Tải hóa đơn */}
                   <Pressable
                     onPress={() => void downloadInvoice(invoice.id)}
                     disabled={actionLoadingId === invoice.id}
                     style={({ pressed }) => [styles.actionButton, styles.actionButtonDownload, pressed && styles.pressed]}>
                     <Text style={styles.actionButtonText}>⬇ Tải hóa đơn</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => void printReceipt(invoice.id)}
-                    disabled={actionLoadingId === invoice.id}
-                    style={({ pressed }) => [styles.actionButton, styles.actionButtonPrint, pressed && styles.pressed]}>
-                    <Text style={styles.actionButtonText}>🖨 In phiếu thu</Text>
-                  </Pressable>
+
+                  {/* 5. ĐB hóa đơn */}
                   <Pressable
                     onPress={() => void syncInvoice(invoice.id)}
                     disabled={actionLoadingId === invoice.id}
                     style={({ pressed }) => [styles.actionButton, styles.actionButtonSync, pressed && styles.pressed]}>
                     <Text style={styles.actionButtonText}>
-                      {actionLoadingId === invoice.id && actionLabel.includes('đồng bộ') ? 'Đang xử lý...' : '🔄 Đồng bộ HĐ'}
+                      {actionLoadingId === invoice.id && actionLabel.includes('đồng bộ') ? 'Đang xử lý...' : '🔄 ĐB hóa đơn'}
                     </Text>
                   </Pressable>
                 </View>
@@ -708,6 +770,18 @@ export default function HouseholdDetailRoute() {
           ) : null}
         </View>
       </View>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </ScrollView>
   );
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InvoicePaymentStatus, Prisma } from '@prisma/client';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
@@ -38,8 +38,28 @@ type PublishResult = {
 };
 
 @Injectable()
-export class InvoicesService {
+export class InvoicesService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    try {
+      await this.prisma.invoice.updateMany({
+        where: {
+          OR: [
+            { invoicePublishStatus: 'SUCCESS' },
+            { invoiceFkey: { not: null } },
+            { invoiceSerial: { not: null } },
+          ],
+          trangThaiThanhToan: { not: InvoicePaymentStatus.PUBLISHED },
+        },
+        data: {
+          trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to sync published invoice statuses:', err);
+    }
+  }
 
   async getMobileCollectionFilters(currentUser?: JwtPayload) {
     const routeWhere: Prisma.RouteWhereInput =
@@ -111,6 +131,7 @@ export class InvoicesService {
       kyHoaDons?: string[];
       tuyenThuRacIds?: number[];
       serviceCatalogIds?: number[];
+      trangThaiThanhToan?: InvoicePaymentStatus | 'ALL';
       keyword?: string;
     },
   ) {
@@ -122,6 +143,9 @@ export class InvoicesService {
 
     const kyHoaDons = [...new Set((params.kyHoaDons ?? []).map((item) => item.trim()).filter(Boolean))];
     const keyword = params.keyword?.trim() || undefined;
+    const statusFilter = params.trangThaiThanhToan && params.trangThaiThanhToan !== 'ALL'
+      ? (params.trangThaiThanhToan as InvoicePaymentStatus)
+      : undefined;
 
     const allowedRouteIds =
       currentUser?.role === 'STAFF'
@@ -164,6 +188,7 @@ export class InvoicesService {
     const where: Prisma.InvoiceWhereInput = {
       isActive: true,
       ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
+      ...(statusFilter ? { trangThaiThanhToan: statusFilter } : {}),
       household: {
         ...(keyword
           ? {
@@ -171,6 +196,7 @@ export class InvoicesService {
                 { tenChuHo: { contains: keyword, mode: 'insensitive' } },
                 { maHoDan: { contains: keyword, mode: 'insensitive' } },
                 { diaChi: { contains: keyword, mode: 'insensitive' } },
+                { soDienThoai: { contains: keyword, mode: 'insensitive' } },
               ],
             }
           : {}),
@@ -295,7 +321,7 @@ export class InvoicesService {
     const unpaidHouseholdCount = await this.prisma.invoice.count({
       where: {
         ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
-        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
         household: {
           ...(keyword
             ? {
@@ -571,17 +597,35 @@ export class InvoicesService {
     }
 
     const now = new Date();
+
+    // Level 0 (UNPAID / OVERDUE) -> Level 1 (PAID)
     const updateResult = await this.prisma.invoice.updateMany({
       where: {
         id: { in: normalizedIds },
         isActive: true,
-        trangThaiThanhToan: { not: InvoicePaymentStatus.PAID },
+        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
       },
       data: {
         trangThaiThanhToan: InvoicePaymentStatus.PAID,
         paymentDate: now,
         paymentNote: paymentNote?.trim() || null,
         receiptImageUrl: receiptImageUrl ?? null,
+        collectedById: currentUser?.sub,
+        collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
+      },
+    });
+
+    // Level 1 (PAID) & Level 2 (PUBLISHED) -> Preserve status, update metadata
+    const updateMetaResult = await this.prisma.invoice.updateMany({
+      where: {
+        id: { in: normalizedIds },
+        isActive: true,
+        trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+      },
+      data: {
+        paymentDate: now,
+        paymentNote: paymentNote?.trim() || undefined,
+        receiptImageUrl: receiptImageUrl ?? undefined,
         collectedById: currentUser?.sub,
         collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
       },
@@ -604,7 +648,7 @@ export class InvoicesService {
 
     return {
       message: 'Thu tiền thành công',
-      updatedCount: updateResult.count,
+      updatedCount: updateResult.count + updateMetaResult.count,
       invoices: updatedInvoices,
     };
   }
@@ -1497,11 +1541,11 @@ export class InvoicesService {
 
       if (alreadyPublished.length > 0) {
         for (const invoice of alreadyPublished) {
-          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PAID) {
+          if (invoice.trangThaiThanhToan !== InvoicePaymentStatus.PUBLISHED) {
             await this.prisma.invoice.update({
               where: { id: invoice.id },
               data: {
-                trangThaiThanhToan: InvoicePaymentStatus.PAID,
+                trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
                 paymentDate: invoice.paymentDate ?? new Date(),
               },
             });
@@ -1588,8 +1632,7 @@ export class InvoicesService {
             mergedPeriodCodes: targetInvoices.length > 1 ? mergedPeriods : targetInvoices[0]?.kyHoaDon ?? null,
             publishedById: currentUser?.sub,
             publishedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,
-            // Nghiệp vụ hiện tại: xuất hóa đơn xong mặc định xác nhận đã thu.
-            trangThaiThanhToan: InvoicePaymentStatus.PAID,
+            trangThaiThanhToan: InvoicePaymentStatus.PUBLISHED,
             paymentDate: issuedAt,
             collectedById: currentUser?.sub,
             collectedByName: currentUser?.hoVaTen || currentUser?.taiKhoan || null,

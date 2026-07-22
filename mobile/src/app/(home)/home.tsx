@@ -24,6 +24,7 @@ import { httpClient, setAccessToken } from '@/api/http-client';
 import { clearAuthSession, loadAuthSession } from '@/auth/auth-storage';
 import { API_BASE_URL } from '@/constants/api-base-url';
 import type { AppMenuItem, LoginResponse } from '@/types/auth';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
@@ -60,6 +61,8 @@ interface HouseholdInvoiceItem {
   paymentNote: string | null;
   receiptImageUrl: string | null;
   invoicePublishStatus: string | null;
+  invoiceSerial?: string | null;
+  invoiceFkey?: string | null;
   household: {
     id: number;
     maHoDan: string;
@@ -204,6 +207,57 @@ export default function HomeRoute() {
   const [totalPages, setTotalPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmConfig({
+      visible: true,
+      ...config,
+    });
+  };
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const today = new Date().toLocaleDateString('vi-VN', {
     weekday: 'long',
     day: '2-digit',
@@ -279,7 +333,7 @@ export default function HomeRoute() {
       } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined;
         if (status === 401 || status === 403) {
-          Alert.alert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại để tải bộ lọc và dữ liệu.');
+          showAlert('Phiên đăng nhập hết hạn', 'Vui lòng đăng nhập lại để tải bộ lọc và dữ liệu.');
           setAccessToken(null);
           await clearAuthSession();
           setSession(null);
@@ -291,7 +345,7 @@ export default function HomeRoute() {
           axios.isAxiosError(error)
             ? error.response?.data?.message ?? 'Không tải được danh sách thu tiền'
             : 'Không tải được danh sách thu tiền';
-        Alert.alert('Lỗi', message);
+        showAlert('Lỗi', message);
       } finally {
         setLoadingList(false);
         setLoadingMore(false);
@@ -384,7 +438,7 @@ export default function HomeRoute() {
       const firstChildKey = fallbackMenus.find((item) => item.children?.length)?.children?.[0]?.key;
       const firstMenuKey = firstChildKey ?? fallbackMenus[0]?.key ?? '';
       setActiveMenuKey(firstMenuKey);
-      Alert.alert('Thông báo', 'Không tải được bộ lọc từ backend hoặc phiên đăng nhập đã hết hạn.');
+      showAlert('Thông báo', 'Không tải được bộ lọc từ backend hoặc phiên đăng nhập đã hết hạn.');
     } finally {
       setBooting(false);
     }
@@ -440,9 +494,9 @@ export default function HomeRoute() {
         serviceCatalogIds: nextServiceIds,
         keyword: searchText.trim() || undefined,
       });
-      Alert.alert('Thông báo', 'Đã làm mới dữ liệu phân tuyến và bộ lọc.');
+      showAlert('Thông báo', 'Đã làm mới dữ liệu phân tuyến và bộ lọc.');
     } catch {
-      Alert.alert('Lỗi', 'Không tải lại được dữ liệu. Vui lòng thử lại.');
+      showAlert('Lỗi', 'Không tải lại được dữ liệu. Vui lòng thử lại.');
     } finally {
       setRefreshing(false);
     }
@@ -480,6 +534,7 @@ export default function HomeRoute() {
     selectedRouteIds,
     selectedServiceIds,
     selectedStatus,
+    searchText,
     loadHouseholds,
   ]);
 
@@ -603,7 +658,7 @@ export default function HomeRoute() {
       const response = await httpClient.post('/invoices/publish', {
         invoiceIds: [invoiceId],
       }, { timeout: 120000 });
-      Alert.alert('Thông báo', response.data?.message ?? 'Đã xử lý xuất hóa đơn');
+      showAlert('Thông báo', response.data?.message ?? 'Đã xử lý xuất hóa đơn');
       await runSearch();
     } catch (error) {
       const message = axios.isAxiosError(error)
@@ -613,7 +668,7 @@ export default function HomeRoute() {
             ? 'Yêu cầu xuất hóa đơn đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Xuất hóa đơn thất bại'
         : 'Xuất hóa đơn thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
     }
@@ -632,7 +687,7 @@ export default function HomeRoute() {
         },
       });
 
-      Alert.alert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
+      showAlert('Thông báo', response.data?.message ?? 'Thu tiền thành công');
       await runSearch();
     } catch (error) {
       const message = axios.isAxiosError(error)
@@ -642,7 +697,7 @@ export default function HomeRoute() {
             ? 'Yêu cầu thu tiền đã bị hủy. Vui lòng thử lại.'
             : error.response?.data?.message ?? 'Thu tiền thất bại'
         : 'Thu tiền thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
     }
@@ -655,7 +710,7 @@ export default function HomeRoute() {
         `/invoices/household/${householdId}/history`,
       );
       const data = response.data;
-      Alert.alert(
+      showAlert(
         'Lịch sử hộ dân',
         `Hộ: ${data.household.tenChuHo} (${data.household.maHoDan})\nTổng: ${data.summary.total}\nĐã thu: ${data.summary.paid}\nChưa thu: ${data.summary.unpaid}`,
       );
@@ -663,7 +718,7 @@ export default function HomeRoute() {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Không tải được lịch sử hộ dân';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
     }
@@ -673,12 +728,12 @@ export default function HomeRoute() {
     setActionLoadingId(invoiceId);
     try {
       await httpClient.get(`/invoices/${invoiceId}/download-vnpt`);
-      Alert.alert('Thông báo', 'Đã gọi API tải hóa đơn');
+      showAlert('Thông báo', 'Đã gọi API tải hóa đơn');
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Tải hóa đơn thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
     }
@@ -692,19 +747,19 @@ export default function HomeRoute() {
           invoiceIds: invoiceId,
         },
       });
-      Alert.alert('Thông báo', 'Đã gọi API tải phiếu thu');
+      showAlert('Thông báo', 'Đã gọi API tải phiếu thu');
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         'Tải phiếu thu thất bại';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setActionLoadingId(null);
     }
   };
 
   const handlePrint = () => {
-    Alert.alert('Thông báo', 'Tính năng in sẽ tích hợp sau với máy in bluetooth');
+    showAlert('Thông báo', 'Tính năng in sẽ tích hợp sau với máy in bluetooth');
   };
 
   const openHouseholdDetail = (householdId: number, kyHoaDon?: string) => {
@@ -723,7 +778,18 @@ export default function HomeRoute() {
 
   const handleDrawerLogout = () => {
     setDrawerOpen(false);
-    void handleLogout();
+    showConfirm({
+      title: 'Xác nhận đăng xuất',
+      message: 'Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng không?',
+      confirmText: 'Đăng xuất',
+      cancelText: 'Hủy',
+      type: 'danger',
+      icon: '🚪',
+      onConfirm: () => {
+        hideConfirm();
+        void handleLogout();
+      },
+    });
   };
 
   const handleMenuPress = (menu: AppMenuItem) => {
@@ -943,9 +1009,13 @@ export default function HomeRoute() {
   );
 
   const renderItem = ({ item }: { item: HouseholdInvoiceItem }) => {
-    const isPaid = item.trangThaiThanhToan === 'PAID';
-    const isPublished = item.trangThaiThanhToan === 'PUBLISHED';
-    const isOverdue = item.trangThaiThanhToan === 'OVERDUE';
+    const isPublished =
+      item.trangThaiThanhToan === 'PUBLISHED' ||
+      item.invoicePublishStatus === 'SUCCESS' ||
+      Boolean(item.invoiceFkey) ||
+      Boolean(item.invoiceSerial);
+    const isPaid = item.trangThaiThanhToan === 'PAID' && !isPublished;
+    const isOverdue = item.trangThaiThanhToan === 'OVERDUE' && !isPublished;
 
     const statusBorderColor = isPublished
       ? '#0d8a6a'
@@ -978,10 +1048,10 @@ export default function HomeRoute() {
           <View
             style={[
               styles.statusChip,
-              isPaid
-                ? styles.statusPaid
-                : isPublished
-                  ? styles.statusPublished
+              isPublished
+                ? styles.statusPublished
+                : isPaid
+                  ? styles.statusPaid
                   : isOverdue
                     ? styles.statusDebt
                     : styles.statusUnpaid,
@@ -997,7 +1067,7 @@ export default function HomeRoute() {
                       ? { color: '#d97706' }
                       : { color: '#e11d48' },
               ]}>
-              {getStatusLabel(item.trangThaiThanhToan)}
+              {isPublished ? 'Đã xuất HĐ' : getStatusLabel(item.trangThaiThanhToan)}
             </Text>
           </View>
         </View>
@@ -1309,6 +1379,18 @@ export default function HomeRoute() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </SafeAreaView>
   );
 }

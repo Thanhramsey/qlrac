@@ -19,6 +19,8 @@ import { loadAuthSession, saveAuthSession } from '@/auth/auth-storage';
 import { API_BASE_URL } from '@/constants/api-base-url';
 import type { LoginResponse } from '@/types/auth';
 
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
+
 export default function LoginRoute() {
   const router = useRouter();
   const [taiKhoanOrSoGiayTo, setTaiKhoanOrSoGiayTo] = useState('');
@@ -26,7 +28,6 @@ export default function LoginRoute() {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const passwordInputRef = useRef<TextInput | null>(null);
-
   useEffect(() => {
     const checkSession = async () => {
       const storedSession = await loadAuthSession();
@@ -48,6 +49,41 @@ export default function LoginRoute() {
     [taiKhoanOrSoGiayTo, matKhau, loading],
   );
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const handleLogin = async () => {
     if (!canSubmit) {
       return;
@@ -67,7 +103,7 @@ export default function LoginRoute() {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Không đăng nhập được, vui lòng thử lại';
-      Alert.alert('Đăng nhập thất bại', errorMessage);
+      showAlert('Đăng nhập thất bại', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -139,6 +175,19 @@ export default function LoginRoute() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        hideCancelButton={confirmConfig.hideCancelButton}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </SafeAreaView>
   );
 }

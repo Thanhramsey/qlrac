@@ -15,6 +15,7 @@ import axios from 'axios';
 import { httpClient } from '@/api/http-client';
 import { loadAuthSession } from '@/auth/auth-storage';
 import type { LoginResponse } from '@/types/auth';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
 
 interface BillingPeriodOption {
   id: number;
@@ -137,6 +138,57 @@ export default function DetailByPeriodReportRoute() {
 
   const isStaff = session?.user.role === 'STAFF';
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showConfirm = (config: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }) => {
+    setConfirmConfig({
+      visible: true,
+      ...config,
+    });
+  };
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   // Labels for UI representation
   const selectedKyLabel = useMemo(() => {
     if (selectedKyHoaDons.length === 0) return 'Chọn kỳ hóa đơn (bắt buộc)';
@@ -210,7 +262,7 @@ export default function DetailByPeriodReportRoute() {
       }
     } catch (error) {
       console.error('Error loading report filters:', error);
-      Alert.alert('Lỗi', 'Không thể tải bộ lọc báo cáo');
+      showAlert('Lỗi', 'Không thể tải bộ lọc báo cáo');
     } finally {
       setLoadingFilters(false);
     }
@@ -223,7 +275,7 @@ export default function DetailByPeriodReportRoute() {
   // Fetch report data
   const fetchReport = useCallback(async (pageToLoad: number, append = false) => {
     if (selectedKyHoaDons.length === 0) {
-      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một kỳ hóa đơn');
+      showAlert('Thông báo', 'Vui lòng chọn ít nhất một kỳ hóa đơn');
       return;
     }
 
@@ -257,7 +309,7 @@ export default function DetailByPeriodReportRoute() {
       const msg = axios.isAxiosError(error)
         ? error.response?.data?.message ?? 'Lỗi tải báo cáo'
         : 'Lỗi tải báo cáo';
-      Alert.alert('Thất bại', msg);
+      showAlert('Thất bại', msg);
     } finally {
       setLoadingReport(false);
       setRefreshing(false);
@@ -660,6 +712,19 @@ export default function DetailByPeriodReportRoute() {
           <Text style={styles.overlayText}>Đang lấy số liệu...</Text>
         </View>
       )}
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        hideCancelButton={confirmConfig.hideCancelButton}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </SafeAreaView>
   );
 }

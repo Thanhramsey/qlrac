@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 
 import { httpClient } from '@/api/http-client';
+import { ConfirmModal, ConfirmModalType } from '@/components/ConfirmModal';
 
 type PaymentStatus = 'UNPAID' | 'PAID' | 'OVERDUE' | 'PUBLISHED';
 
@@ -110,6 +111,41 @@ export default function UnpaidInvoicesRoute() {
   );
   const keyword = (params.keyword ?? '').trim();
 
+  const [confirmConfig, setConfirmConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    hideCancelButton?: boolean;
+    type?: ConfirmModalType;
+    icon?: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setConfirmConfig({
+      visible: true,
+      title,
+      message,
+      confirmText: 'Đóng',
+      hideCancelButton: true,
+      onConfirm: () => {
+        hideConfirm();
+        if (onConfirm) onConfirm();
+      },
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const loadUnpaidInvoices = useCallback(async () => {
     setLoading(true);
     try {
@@ -131,7 +167,7 @@ export default function UnpaidInvoicesRoute() {
         axios.isAxiosError(error)
           ? error.response?.data?.message ?? 'Không tải được danh sách hóa đơn chưa thu'
           : 'Không tải được danh sách hóa đơn chưa thu';
-      Alert.alert('Lỗi', message);
+      showAlert('Lỗi', message);
     } finally {
       setLoading(false);
     }
@@ -205,6 +241,19 @@ export default function UnpaidInvoicesRoute() {
           </View>
         ) : null}
       </View>
+
+      <ConfirmModal
+        visible={confirmConfig.visible}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        cancelText={confirmConfig.cancelText}
+        hideCancelButton={confirmConfig.hideCancelButton}
+        type={confirmConfig.type}
+        icon={confirmConfig.icon}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={hideConfirm}
+      />
     </ScrollView>
   );
 }

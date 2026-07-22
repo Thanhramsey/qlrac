@@ -104,3 +104,5 @@ npx eas-cli build --platform android --profile preview
     ```bash
     npx expo install --fix -- --legacy-peer-deps
     ```
+
+    DEBUG APP npx expo run:android

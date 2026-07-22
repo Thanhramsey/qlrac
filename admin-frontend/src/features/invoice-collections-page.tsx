@@ -8,6 +8,7 @@ import {
   Modal,
   Popconfirm,
   Select,
+  Skeleton,
   Space,
   Table,
   Tag,
@@ -33,6 +34,7 @@ import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../api/axios.instance'
+import { useDebounce } from '../hooks/use-debounce'
 import type {
   BillingPeriodItem,
   HouseholdInvoiceHistoryResponse,
@@ -649,6 +651,10 @@ export function InvoiceCollectionsPage() {
   })
 
   const [searchValues, setSearchValues] = useState<InvoiceSearchValues>({})
+  const [tenChuHoInput, setTenChuHoInput] = useState('')
+  const [diaChiInput, setDiaChiInput] = useState('')
+  const debouncedTenChuHo = useDebounce(tenChuHoInput, 400)
+  const debouncedDiaChi = useDebounce(diaChiInput, 400)
   const [collecting, setCollecting] = useState(false)
   const [collectModalOpen, setCollectModalOpen] = useState(false)
   const [collectTargetIds, setCollectTargetIds] = useState<number[]>([])
@@ -778,17 +784,21 @@ export function InvoiceCollectionsPage() {
       const periodData = await fetchLookupData()
       const latestPeriodCode = periodData[0]?.maKy
 
-      if (latestPeriodCode) {
-        const initialFilters: InvoiceSearchValues = { kyHoaDon: latestPeriodCode }
-        searchForm.setFieldsValue({ kyHoaDon: latestPeriodCode })
-        setSearchValues(initialFilters)
-        await fetchInvoices(1, 10, initialFilters)
-        return
+      const initialFilters: InvoiceSearchValues = {
+        ...searchValues,
+        kyHoaDon: latestPeriodCode || searchValues.kyHoaDon,
+        tenChuHo: debouncedTenChuHo.trim() || undefined,
+        diaChi: debouncedDiaChi.trim() || undefined,
       }
 
-      await fetchInvoices(1, 10, {})
+      if (latestPeriodCode && !searchForm.getFieldValue('kyHoaDon')) {
+        searchForm.setFieldsValue({ kyHoaDon: latestPeriodCode })
+      }
+
+      setSearchValues(initialFilters)
+      await fetchInvoices(1, pagination.limit, initialFilters)
     })()
-  }, [])
+  }, [debouncedTenChuHo, debouncedDiaChi])
 
   const onSearch = async () => {
     const values = searchForm.getFieldsValue()
@@ -807,6 +817,8 @@ export function InvoiceCollectionsPage() {
 
   const onResetSearch = async () => {
     searchForm.resetFields()
+    setTenChuHoInput('')
+    setDiaChiInput('')
     const emptyFilter: InvoiceSearchValues = {}
     setSearchValues(emptyFilter)
     setSelectedRowKeys([])
@@ -1290,10 +1302,20 @@ export function InvoiceCollectionsPage() {
                 />
               </Form.Item>
               <Form.Item name="tenChuHo" style={{ marginBottom: 0 }}>
-                <Input style={{ width: 200 }} placeholder="Tên hộ dân" />
+                <Input
+                  style={{ width: 200 }}
+                  placeholder="Tên hộ dân"
+                  value={tenChuHoInput}
+                  onChange={(e) => setTenChuHoInput(e.target.value)}
+                />
               </Form.Item>
               <Form.Item name="diaChi" style={{ marginBottom: 0 }}>
-                <Input style={{ width: 240 }} placeholder="Địa chỉ" />
+                <Input
+                  style={{ width: 240 }}
+                  placeholder="Địa chỉ"
+                  value={diaChiInput}
+                  onChange={(e) => setDiaChiInput(e.target.value)}
+                />
               </Form.Item>
               <Form.Item name="tuyenThuRacId" style={{ marginBottom: 0 }}>
                 <Select
@@ -1303,6 +1325,11 @@ export function InvoiceCollectionsPage() {
                   showSearch
                   optionFilterProp="label"
                   placeholder="Tuyến đường"
+                  onChange={(val) => {
+                    const next = { ...searchValues, tuyenThuRacId: val }
+                    setSearchValues(next)
+                    void fetchInvoices(1, pagination.limit, next)
+                  }}
                 />
               </Form.Item>
               <Form.Item name="serviceCatalogId" style={{ marginBottom: 0 }}>
@@ -1313,6 +1340,11 @@ export function InvoiceCollectionsPage() {
                   showSearch
                   optionFilterProp="label"
                   placeholder="Loại dịch vụ"
+                  onChange={(val) => {
+                    const next = { ...searchValues, serviceCatalogId: val }
+                    setSearchValues(next)
+                    void fetchInvoices(1, pagination.limit, next)
+                  }}
                 />
               </Form.Item>
               <Form.Item name="trangThaiThanhToan" style={{ marginBottom: 0 }}>
@@ -1321,240 +1353,243 @@ export function InvoiceCollectionsPage() {
                   style={{ width: 160 }}
                   options={PAYMENT_STATUS_OPTIONS}
                   placeholder="Trạng thái"
+                  onChange={(val) => {
+                    const next = { ...searchValues, trangThaiThanhToan: val }
+                    setSearchValues(next)
+                    void fetchInvoices(1, pagination.limit, next)
+                  }}
                 />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
-                <Space>
-                  <Button type="primary" icon={<SearchOutlined />} onClick={() => void onSearch()}>
-                    Tìm kiếm
-                  </Button>
-                  <Button onClick={() => void onResetSearch()}>Đặt lại</Button>
-                </Space>
+                <Button onClick={() => void onResetSearch()}>Đặt lại</Button>
               </Form.Item>
             </Space>
           </Form>
         </Card>
 
         <div className="invoice-table-wrap">
-          <Table<InvoiceItem>
-            rowKey="id"
-            bordered
-            size="middle"
-            loading={loading}
-            dataSource={invoices}
-            rowClassName={(_, index) => (index % 2 === 0 ? 'row-even' : 'row-odd')}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys) => setSelectedRowKeys(keys as number[]),
-            }}
-            columns={[
-              {
-                title: 'Kỳ',
-                dataIndex: 'kyHoaDon',
-                width: 110,
-              },
-              {
-                title: 'Mã hộ',
-                render: (_, record) => record.household?.maHoDan ?? '---',
-                width: 110,
-              },
-              {
-                title: 'Hộ dân',
-                render: (_, record) => record.household?.tenChuHo ?? '---',
-                width: 180,
-              },
-              {
-                title: 'Trạng thái',
-                render: (_, record) => getStatusTag(record.trangThaiThanhToan),
-                width: 120,
-              },
-              {
-                title: 'Phát hành',
-                render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
-                width: 130,
-              },
-              {
-                title: 'Địa chỉ',
-                render: (_, record) => record.household?.diaChi ?? '---',
-                width: 220,
-              },
-              {
-                title: 'Tuyến đường',
-                render: (_, record) => record.household?.tuyenThuRac?.tenTuyen ?? '---',
-                width: 150,
-              },
-              {
-                title: 'Loại dịch vụ',
-                render: (_, record) => record.household?.serviceCatalog?.tenDichVu ?? '---',
-                width: 170,
-              },
-              {
-                title: 'Số seri',
-                dataIndex: 'invoiceSerial',
-                width: 130,
-                render: (value: string | null | undefined) => value || '---',
-              },
-              {
-                title: 'Fkey',
-                dataIndex: 'invoiceFkey',
-                width: 180,
-                render: (value: string | null | undefined) => value || '---',
-              },
-              {
-                title: 'Ngày phát hành',
-                dataIndex: 'invoiceIssuedAt',
-                width: 170,
-                render: (value: string | null | undefined) =>
-                  value ? new Date(value).toLocaleString('vi-VN') : '---',
-              },
-              {
-                title: 'Người xuất',
-                render: (_, record) => record.publishedByName || '---',
-                width: 140,
-              },
-              {
-                title: 'Người thu',
-                render: (_, record) => record.collectedByName || '---',
-                width: 140,
-              },
-              {
-                title: 'Tổng tiền',
-                render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
-                width: 150,
-              },
-              {
-                title: 'Ảnh biên nhận',
-                render: (_, record) =>
-                  record.receiptImageUrl ? (
-                    <Image
-                      width={48}
-                      height={48}
-                      style={{ objectFit: 'cover', borderRadius: 8 }}
-                      src={record.receiptImageUrl}
-                    />
-                  ) : (
-                    '---'
-                  ),
-                width: 120,
-              },
-              {
-                title: 'Thao tác',
-                width: 340,
-                fixed: 'right',
-                render: (_, record) => (
-                  <Space size={4} wrap>
-                    <Button
-                      className="invoice-action-btn publish"
-                      size="small"
-                      type="primary"
-                      icon={<CloudUploadOutlined />}
-                      onClick={() => void publishInvoices([record.id])}
-                      disabled={record.invoicePublishStatus === 'SUCCESS'}
-                    >
-                      Xuất HĐĐT
-                    </Button>
-                    <Button
-                      className="invoice-action-btn collect"
-                      type="primary"
-                      size="small"
-                      disabled={record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED'}
-                      onClick={() => openCollectModal([record.id])}
-                    >
-                      Thu tiền
-                    </Button>
-                    <Dropdown
-                      trigger={["click"]}
-                      menu={{
-                        items: [
-                          {
-                            key: 'sync',
-                            label: 'Đồng bộ',
-                            icon: <SyncOutlined />,
-                          },
-                          {
-                            key: 'history',
-                            label: 'Lịch sử',
-                            icon: <HistoryOutlined />,
-                          },
-                          {
-                            key: 'status',
-                            label: 'Trạng thái',
-                            icon: <EditOutlined />,
-                          },
-                          {
-                            type: 'divider',
-                          },
-                          {
-                            key: 'invoice-pdf',
-                            label: 'Tải hóa đơn PDF',
-                            icon: <FilePdfOutlined />,
-                            disabled: !record.invoiceFkey,
-                          },
-                          {
-                            key: 'invoice-image',
-                            label: 'Tải hóa đơn ảnh',
-                            icon: <FileImageOutlined />,
-                            disabled: !record.invoiceFkey,
-                          },
-                          {
-                            key: 'receipt-pdf',
-                            label: 'Tải phiếu thu PDF',
-                            icon: <FilePdfOutlined />,
-                          },
-                          {
-                            key: 'receipt-image',
-                            label: 'Tải phiếu thu ảnh',
-                            icon: <FileImageOutlined />,
-                          },
-                        ],
-                        onClick: ({ key }) => {
-                          if (key === 'sync') {
-                            void syncInvoiceMetadata([record.id])
-                            return
-                          }
-
-                          if (key === 'history') {
-                            void openHistory(record.householdId)
-                            return
-                          }
-
-                          if (key === 'status') {
-                            openStatusModal(record)
-                            return
-                          }
-
-                          if (key === 'invoice-pdf') {
-                            void downloadVnptInvoice(record.id, 'pdf')
-                            return
-                          }
-
-                          if (key === 'invoice-image') {
-                            void downloadVnptInvoice(record.id, 'image')
-                            return
-                          }
-
-                          if (key === 'receipt-pdf') {
-                            void loadReceiptsAndDownload([record.id], 'pdf')
-                            return
-                          }
-
-                          if (key === 'receipt-image') {
-                            void loadReceiptsAndDownload([record.id], 'image')
-                          }
-                        },
-                      }}
-                    >
+          {loading && invoices.length === 0 ? (
+            <Skeleton active paragraph={{ rows: 8 }} />
+          ) : (
+            <Table<InvoiceItem>
+              rowKey="id"
+              bordered
+              size="middle"
+              loading={loading}
+              dataSource={invoices}
+              rowClassName={(_, index) => (index % 2 === 0 ? 'row-even' : 'row-odd')}
+              rowSelection={{
+                selectedRowKeys,
+                onChange: (keys) => setSelectedRowKeys(keys as number[]),
+              }}
+              columns={[
+                {
+                  title: 'Kỳ',
+                  dataIndex: 'kyHoaDon',
+                  width: 110,
+                },
+                {
+                  title: 'Mã hộ',
+                  render: (_, record) => record.household?.maHoDan ?? '---',
+                  width: 110,
+                },
+                {
+                  title: 'Hộ dân',
+                  render: (_, record) => record.household?.tenChuHo ?? '---',
+                  width: 180,
+                },
+                {
+                  title: 'Trạng thái',
+                  render: (_, record) => getStatusTag(record.trangThaiThanhToan),
+                  width: 120,
+                },
+                {
+                  title: 'Phát hành',
+                  render: (_, record) => getPublishStatusTag(record.invoicePublishStatus),
+                  width: 130,
+                },
+                {
+                  title: 'Địa chỉ',
+                  render: (_, record) => record.household?.diaChi ?? '---',
+                  width: 220,
+                },
+                {
+                  title: 'Tuyến đường',
+                  render: (_, record) => record.household?.tuyenThuRac?.tenTuyen ?? '---',
+                  width: 150,
+                },
+                {
+                  title: 'Loại dịch vụ',
+                  render: (_, record) => record.household?.serviceCatalog?.tenDichVu ?? '---',
+                  width: 170,
+                },
+                {
+                  title: 'Số seri',
+                  dataIndex: 'invoiceSerial',
+                  width: 130,
+                  render: (value: string | null | undefined) => value || '---',
+                },
+                {
+                  title: 'Fkey',
+                  dataIndex: 'invoiceFkey',
+                  width: 180,
+                  render: (value: string | null | undefined) => value || '---',
+                },
+                {
+                  title: 'Ngày phát hành',
+                  dataIndex: 'invoiceIssuedAt',
+                  width: 170,
+                  render: (value: string | null | undefined) =>
+                    value ? new Date(value).toLocaleString('vi-VN') : '---',
+                },
+                {
+                  title: 'Người xuất',
+                  render: (_, record) => record.publishedByName || '---',
+                  width: 140,
+                },
+                {
+                  title: 'Người thu',
+                  render: (_, record) => record.collectedByName || '---',
+                  width: 140,
+                },
+                {
+                  title: 'Tổng tiền',
+                  render: (_, record) => formatCurrency(Number(record.tongTien) + Number(record.thue)),
+                  width: 150,
+                },
+                {
+                  title: 'Ảnh biên nhận',
+                  render: (_, record) =>
+                    record.receiptImageUrl ? (
+                      <Image
+                        width={48}
+                        height={48}
+                        style={{ objectFit: 'cover', borderRadius: 8 }}
+                        src={record.receiptImageUrl}
+                      />
+                    ) : (
+                      '---'
+                    ),
+                  width: 120,
+                },
+                {
+                  title: 'Thao tác',
+                  width: 340,
+                  fixed: 'right',
+                  render: (_, record) => (
+                    <Space size={4} wrap>
                       <Button
-                        className="invoice-action-btn download"
+                        className="invoice-action-btn publish"
                         size="small"
-                        icon={<DownOutlined />}
+                        type="primary"
+                        icon={<CloudUploadOutlined />}
+                        onClick={() => void publishInvoices([record.id])}
+                        disabled={record.invoicePublishStatus === 'SUCCESS'}
                       >
-                        Khác
+                        Xuất HĐĐT
                       </Button>
-                    </Dropdown>
-                  </Space>
-                ),
-              },
+                      <Button
+                        className="invoice-action-btn collect"
+                        type="primary"
+                        size="small"
+                        disabled={record.trangThaiThanhToan === 'PAID' || record.trangThaiThanhToan === 'PUBLISHED'}
+                        onClick={() => openCollectModal([record.id])}
+                      >
+                        Thu tiền
+                      </Button>
+                      <Dropdown
+                        trigger={["click"]}
+                        menu={{
+                          items: [
+                            {
+                              key: 'sync',
+                              label: 'Đồng bộ',
+                              icon: <SyncOutlined />,
+                            },
+                            {
+                              key: 'history',
+                              label: 'Lịch sử',
+                              icon: <HistoryOutlined />,
+                            },
+                            {
+                              key: 'status',
+                              label: 'Trạng thái',
+                              icon: <EditOutlined />,
+                            },
+                            {
+                              type: 'divider',
+                            },
+                            {
+                              key: 'invoice-pdf',
+                              label: 'Tải hóa đơn PDF',
+                              icon: <FilePdfOutlined />,
+                              disabled: !record.invoiceFkey,
+                            },
+                            {
+                              key: 'invoice-image',
+                              label: 'Tải hóa đơn ảnh',
+                              icon: <FileImageOutlined />,
+                              disabled: !record.invoiceFkey,
+                            },
+                            {
+                              key: 'receipt-pdf',
+                              label: 'Tải phiếu thu PDF',
+                              icon: <FilePdfOutlined />,
+                            },
+                            {
+                              key: 'receipt-image',
+                              label: 'Tải phiếu thu ảnh',
+                              icon: <FileImageOutlined />,
+                            },
+                          ],
+                          onClick: ({ key }) => {
+                            if (key === 'sync') {
+                              void syncInvoiceMetadata([record.id])
+                              return
+                            }
+
+                            if (key === 'history') {
+                              void openHistory(record.householdId)
+                              return
+                            }
+
+                            if (key === 'status') {
+                              openStatusModal(record)
+                              return
+                            }
+
+                            if (key === 'invoice-pdf') {
+                              void downloadVnptInvoice(record.id, 'pdf')
+                              return
+                            }
+
+                            if (key === 'invoice-image') {
+                              void downloadVnptInvoice(record.id, 'image')
+                              return
+                            }
+
+                            if (key === 'receipt-pdf') {
+                              void loadReceiptsAndDownload([record.id], 'pdf')
+                              return
+                            }
+
+                            if (key === 'receipt-image') {
+                              void loadReceiptsAndDownload([record.id], 'image')
+                            }
+                          },
+                        }}
+                      >
+                        <Button
+                          className="invoice-action-btn download"
+                          size="small"
+                          icon={<DownOutlined />}
+                        >
+                          Khác
+                        </Button>
+                      </Dropdown>
+                    </Space>
+                  ),
+                },
             ]}
             scroll={{ x: 2500 }}
             pagination={{
@@ -1568,6 +1603,7 @@ export function InvoiceCollectionsPage() {
               },
             }}
           />
+          )}
         </div>
       </Space>
 

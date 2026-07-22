@@ -6,6 +6,8 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Select,
+  Skeleton,
   Space,
   Switch,
   Table,
@@ -222,23 +224,28 @@ export function ServiceCatalogsPage() {
         </Space>
       }
     >
-      <Table<ServiceCatalogItem>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={items}
-        scroll={{ x: 1150 }}
-        pagination={{
-          current: page,
-          pageSize: limit,
-          total,
-          showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50, 100],
-          onChange: (nextPage, nextPageSize) => {
-            void fetchData(nextPage, nextPageSize)
-          },
-        }}
-      />
+      {loading && items.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : (
+        <Table<ServiceCatalogItem>
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={items}
+          scroll={{ x: 1150 }}
+          pagination={{
+            current: page,
+            pageSize: limit,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (tot) => `Tổng ${tot} dịch vụ`,
+            onChange: (nextPage, nextPageSize) => {
+              void fetchData(nextPage, nextPageSize)
+            },
+          }}
+        />
+      )}
 
       <Modal
         title={editingItem ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ'}

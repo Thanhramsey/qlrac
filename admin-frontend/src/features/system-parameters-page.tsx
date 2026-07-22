@@ -5,6 +5,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Skeleton,
   Space,
   Switch,
   Table,
@@ -208,23 +209,28 @@ export function SystemParametersPage() {
         style={{ marginBottom: 16 }}
       />
 
-      <Table<SystemParameterItem>
-        rowKey="id"
-        loading={loading}
-        columns={columns}
-        dataSource={items}
-        scroll={{ x: 900 }}
-        pagination={{
-          current: page,
-          pageSize: limit,
-          total,
-          showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50, 100],
-          onChange: (nextPage, nextPageSize) => {
-            void fetchData(nextPage, nextPageSize)
-          },
-        }}
-      />
+      {loading && items.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : (
+        <Table<SystemParameterItem>
+          rowKey="id"
+          loading={loading}
+          columns={columns}
+          dataSource={items}
+          scroll={{ x: 900 }}
+          pagination={{
+            current: page,
+            pageSize: limit,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            showTotal: (tot) => `Tổng ${tot} tham số`,
+            onChange: (nextPage, nextPageSize) => {
+              void fetchData(nextPage, nextPageSize)
+            },
+          }}
+        />
+      )}
 
       <Modal
         title={editingItem ? 'Cập nhật tham số hệ thống' : 'Thêm tham số hệ thống'}

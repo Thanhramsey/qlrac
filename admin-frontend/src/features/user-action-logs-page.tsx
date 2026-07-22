@@ -8,6 +8,7 @@ import {
   Input,
   Modal,
   Select,
+  Skeleton,
   Space,
   Table,
   Tag,
@@ -18,6 +19,7 @@ import { SearchOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/ic
 import type { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '../api/axios.instance'
+import { useDebounce } from '../hooks/use-debounce'
 import type { PagedResponse, UserActionLogItem } from '../types'
 
 const { RangePicker } = DatePicker
@@ -232,9 +234,22 @@ export function UserActionLogsPage() {
     }
   }
 
+  const [keywordInput, setKeywordInput] = useState('')
+  const [moduleKeyInput, setModuleKeyInput] = useState('')
+  const [actionInput, setActionInput] = useState('')
+  const debouncedKeyword = useDebounce(keywordInput, 400)
+  const debouncedModuleKey = useDebounce(moduleKeyInput, 400)
+  const debouncedAction = useDebounce(actionInput, 400)
+
   useEffect(() => {
-    void fetchData(1, limit, {})
-  }, [])
+    const nextFilters: SearchValues = {
+      ...filters,
+      keyword: debouncedKeyword.trim() || undefined,
+      moduleKey: debouncedModuleKey.trim() || undefined,
+      action: debouncedAction.trim() || undefined,
+    }
+    void fetchData(1, limit, nextFilters)
+  }, [debouncedKeyword, debouncedModuleKey, debouncedAction])
 
   const onSearch = async () => {
     const values = await form.validateFields()
@@ -397,13 +412,27 @@ export function UserActionLogsPage() {
             placeholder="Tài khoản, họ tên, endpoint..."
             style={{ width: 260 }}
             prefix={<SearchOutlined style={{ color: '#bbb' }} />}
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
           />
         </Form.Item>
         <Form.Item name="moduleKey">
-          <Input allowClear placeholder="Module (users, invoices...)" style={{ width: 200 }} />
+          <Input
+            allowClear
+            placeholder="Module (users, invoices...)"
+            style={{ width: 200 }}
+            value={moduleKeyInput}
+            onChange={(e) => setModuleKeyInput(e.target.value)}
+          />
         </Form.Item>
         <Form.Item name="action">
-          <Input allowClear placeholder="Hành động (CREATE_USERS...)" style={{ width: 210 }} />
+          <Input
+            allowClear
+            placeholder="Hành động (CREATE_USERS...)"
+            style={{ width: 210 }}
+            value={actionInput}
+            onChange={(e) => setActionInput(e.target.value)}
+          />
         </Form.Item>
         <Form.Item name="httpMethod">
           <Select
@@ -439,19 +468,17 @@ export function UserActionLogsPage() {
           />
         </Form.Item>
         <Form.Item>
-          <Space>
-            <Button type="primary" icon={<SearchOutlined />} onClick={() => void onSearch()}>
-              Tìm kiếm
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={onReset}>
-              Đặt lại
-            </Button>
-          </Space>
+          <Button icon={<ReloadOutlined />} onClick={onReset}>
+            Đặt lại
+          </Button>
         </Form.Item>
       </Form>
 
-      <Table<UserActionLogItem>
-        rowKey="id"
+      {loading && items.length === 0 ? (
+        <Skeleton active paragraph={{ rows: 8 }} />
+      ) : (
+        <Table<UserActionLogItem>
+          rowKey="id"
         loading={loading}
         columns={columns}
         dataSource={items}
@@ -472,13 +499,14 @@ export function UserActionLogsPage() {
           pageSize: limit,
           total,
           showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50, 100],
-          showTotal: (tot) => `Tổng ${tot} bản ghi`,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (tot) => `Tổng ${tot} bản ghi nhật ký`,
           onChange: (nextPage, nextPageSize) => {
             void fetchData(nextPage, nextPageSize, filters)
           },
         }}
       />
+      )}
 
       <LogDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
     </Card>

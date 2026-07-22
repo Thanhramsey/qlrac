@@ -5,6 +5,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Skeleton,
   Space,
   Switch,
   Table,
@@ -116,63 +117,71 @@ export function RolesPage({ roles, loading, onRolesChanged }: RolesPageProps) {
           </Button>
         </Space>
 
-        <Table<RoleOption>
-          rowKey="code"
-          dataSource={roles}
-          pagination={false}
-          columns={[
-            {
-              title: 'Mã quyền',
-              dataIndex: 'code',
-              width: 180,
-              render: (value: string) => <Tag color="blue">{value}</Tag>,
-            },
-            {
-              title: 'Tên quyền',
-              dataIndex: 'label',
-              width: 240,
-            },
-            {
-              title: 'Mô tả',
-              dataIndex: 'moTa',
-              render: (value: string | null | undefined) => value || '-',
-            },
-            {
-              title: 'Trạng thái',
-              dataIndex: 'isActive',
-              width: 140,
-              render: (value: boolean | undefined) =>
-                value !== false ? (
-                  <Tag color="green">Kích hoạt</Tag>
-                ) : (
-                  <Tag>Khóa</Tag>
+        {loading && roles.length === 0 ? (
+          <Skeleton active paragraph={{ rows: 5 }} />
+        ) : (
+          <Table<RoleOption>
+            rowKey="code"
+            dataSource={roles}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Tổng ${total} vai trò`,
+            }}
+            columns={[
+              {
+                title: 'Mã quyền',
+                dataIndex: 'code',
+                width: 180,
+                render: (value: string) => <Tag color="blue">{value}</Tag>,
+              },
+              {
+                title: 'Tên quyền',
+                dataIndex: 'label',
+                width: 240,
+              },
+              {
+                title: 'Mô tả',
+                dataIndex: 'moTa',
+                render: (value: string | null | undefined) => value || '-',
+              },
+              {
+                title: 'Trạng thái',
+                dataIndex: 'isActive',
+                width: 140,
+                render: (value: boolean | undefined) =>
+                  value !== false ? (
+                    <Tag color="green">Kích hoạt</Tag>
+                  ) : (
+                    <Tag>Khóa</Tag>
+                  ),
+              },
+              {
+                title: 'Thao tác',
+                key: 'actions',
+                width: 130,
+                render: (_, record) => (
+                  <Space>
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditModal(record)}
+                    />
+                    <Popconfirm
+                      title="Xóa quyền"
+                      description="Bạn chắc chắn muốn xóa quyền này?"
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      onConfirm={() => void onDeleteRole(record.code)}
+                    >
+                      <Button danger size="small" icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </Space>
                 ),
-            },
-            {
-              title: 'Thao tác',
-              key: 'actions',
-              width: 130,
-              render: (_, record) => (
-                <Space>
-                  <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => openEditModal(record)}
-                  />
-                  <Popconfirm
-                    title="Xóa quyền"
-                    description="Bạn chắc chắn muốn xóa quyền này?"
-                    okText="Xóa"
-                    cancelText="Hủy"
-                    onConfirm={() => void onDeleteRole(record.code)}
-                  >
-                    <Button danger size="small" icon={<DeleteOutlined />} />
-                  </Popconfirm>
-                </Space>
-              ),
-            },
-          ]}
-        />
+              },
+            ]}
+          />
+        )}
       </Space>
 
       <Modal

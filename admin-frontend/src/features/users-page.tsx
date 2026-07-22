@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Button,
   Card,
   DatePicker,
@@ -7,31 +8,28 @@ import {
   Modal,
   Popconfirm,
   Select,
-  Switch,
+  Skeleton,
   Space,
+  Switch,
   Table,
   Tag,
-  Upload,
   Typography,
+  Upload,
   message,
 } from 'antd'
-import dayjs from 'dayjs'
 import {
   DeleteOutlined,
   EditOutlined,
-  ExclamationCircleOutlined,
   PlusOutlined,
+  SearchOutlined,
   UploadOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
-import { apiClient } from '../api/axios.instance'
-import type {
-  PagedResponse,
-  RoleOption,
-  RouteItem,
-  UserListItem,
-  UserListResponse,
-} from '../types'
+import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
+import { apiClient } from '../api/axios.instance'
+import { useDebounce } from '../hooks/use-debounce'
+import type { PagedResponse, RoleOption, RouteItem, UserListItem, UserListResponse } from '../types'
 
 interface UsersPageProps {
   roles: RoleOption[]
@@ -39,7 +37,6 @@ interface UsersPageProps {
 
 type UserFormValues = {
   taiKhoan: string
-  matKhau?: string
   hoVaTen: string
   ngaySinh?: dayjs.Dayjs
   gioiTinh?: string
@@ -49,14 +46,9 @@ type UserFormValues = {
   email?: string
   role: string
   routeIds?: number[]
-  isActive?: boolean
+  isActive: boolean
+  matKhau?: string
 }
-
-const genderOptions = [
-  { value: 'Nam', label: 'Nam' },
-  { value: 'Nu', label: 'Nữ' },
-  { value: 'Khac', label: 'Khác' },
-]
 
 export function UsersPage({ roles }: UsersPageProps) {
   const [form] = Form.useForm<UserFormValues>()
@@ -65,6 +57,9 @@ export function UsersPage({ roles }: UsersPageProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingUser, setEditingUser] = useState<UserListItem | null>(null)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const debouncedSearch = useDebounce(searchKeyword, 400)
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -78,11 +73,20 @@ export function UsersPage({ roles }: UsersPageProps) {
     [roles],
   )
 
-  const fetchUsers = async (page = pagination.page, limit = pagination.limit) => {
+  const fetchUsers = async (
+    page = pagination.page,
+    limit = pagination.limit,
+    keyword = debouncedSearch,
+  ) => {
     setLoading(true)
     try {
       const response = await apiClient.get<UserListResponse>('/users', {
-        params: { page, limit, includeInactive },
+        params: {
+          page,
+          limit,
+          includeInactive,
+          keyword: keyword.trim() || undefined,
+        },
       })
       setListData(response.data.data)
       setPagination({
@@ -100,9 +104,9 @@ export function UsersPage({ roles }: UsersPageProps) {
   }
 
   useEffect(() => {
-    void fetchUsers(1, 10)
+    void fetchUsers(1, pagination.limit, debouncedSearch)
     void fetchRoutes()
-  }, [includeInactive])
+  }, [includeInactive, debouncedSearch])
 
   const fetchRoutes = async () => {
     try {
@@ -160,70 +164,6 @@ export function UsersPage({ roles }: UsersPageProps) {
         routeIds: values.routeIds ?? [],
       }
 
-      // Check for route conflicts: find routes that are already assigned to other users
-      if ((values.routeIds ?? []).length > 0) {
-        type ConflictInfo = { routeName: string; staffName: string; staffId: number }
-        const conflicts: ConflictInfo[] = []
-
-        for (const routeId of values.routeIds ?? []) {
-          const route = routeOptions.find((r) => r.id === routeId)
-          if (!route || !route.staffId) continue
-          // Skip if the route is already assigned to the user being edited
-          if (editingUser && route.staffId === editingUser.id) continue
-
-          const currentStaff = listData.find((u) => u.id === route.staffId)
-          if (currentStaff) {
-            conflicts.push({
-              routeName: `${route.tenTuyen} (${route.maTuyen})`,
-              staffName: currentStaff.hoVaTen,
-              staffId: currentStaff.id,
-            })
-          }
-        }
-
-        if (conflicts.length > 0) {
-          // Group conflicts by staffId
-          const byStaff = conflicts.reduce<Record<number, { staffName: string; routes: string[] }>>(
-            (acc, c) => {
-              if (!acc[c.staffId]) acc[c.staffId] = { staffName: c.staffName, routes: [] }
-              acc[c.staffId].routes.push(c.routeName)
-              return acc
-            },
-            {},
-          )
-
-          await new Promise<void>((resolve, reject) => {
-            Modal.confirm({
-              title: 'Cảnh báo: Các tuyến đang được phân cho nhân viên khác',
-              icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
-              content: (
-                <div>
-                  <p>Các tuyến bạn vừa chọn hiện đã thuộc về nhân viên khác:</p>
-                  <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
-                    {Object.values(byStaff).map((item) => (
-                      <li key={item.staffName}>
-                        <strong>{item.staffName}</strong>: {item.routes.join(', ')}
-                      </li>
-                    ))}
-                  </ul>
-                  <p style={{ marginBottom: 4 }}>Bạn có chắc chắn muốn phân lại các tuyến này không?</p>
-                  <p style={{ color: '#ff4d4f', fontSize: 12, marginBottom: 0 }}>
-                    ⚠ Lưu ý: Thao tác này sẽ khiến nhân viên kể trên mất quyền phụ trách các tuyến đó.
-                  </p>
-                </div>
-              ),
-              okText: 'Xác nhận phân lại',
-              okButtonProps: { danger: true },
-              cancelText: 'Hủy',
-              onOk: () => resolve(),
-              onCancel: () => reject(new Error('cancelled')),
-            })
-          })
-        }
-      }
-
-      setSaving(true)
-
       if (editingUser) {
         if (!payload.matKhau) {
           delete payload.matKhau
@@ -232,21 +172,17 @@ export function UsersPage({ roles }: UsersPageProps) {
         await apiClient.patch(`/users/${editingUser.id}`, payload)
         message.success('Cập nhật người dùng thành công')
       } else {
-        if (!payload.matKhau) {
-          message.error('Mật khẩu là bắt buộc khi tạo mới người dùng')
-          return
-        }
-
         await apiClient.post('/users', payload)
-        message.success('Tạo người dùng thành công')
+        message.success('Thêm người dùng thành công')
       }
 
       closeModal()
       void fetchUsers(pagination.page, pagination.limit)
     } catch (error) {
-      if (error instanceof Error && error.message !== 'cancelled') {
-        message.error(error.message)
+      if ((error as { errorFields?: unknown }).errorFields) {
+        return
       }
+      message.error(error instanceof Error ? error.message : 'Không lưu được người dùng')
     } finally {
       setSaving(false)
     }
@@ -275,11 +211,19 @@ export function UsersPage({ roles }: UsersPageProps) {
   return (
     <Card className="page-card" variant="borderless">
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            Danh sách người dùng
+            Quản lý người dùng
           </Typography.Title>
-          <Space>
+          <Space wrap size={12}>
+            <Input
+              allowClear
+              placeholder="Tìm theo tài khoản, họ tên..."
+              prefix={<SearchOutlined style={{ color: '#aaa' }} />}
+              style={{ width: 260 }}
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+            />
             <Space>
               <span>Hiện đã xóa</span>
               <Switch
@@ -324,109 +268,120 @@ export function UsersPage({ roles }: UsersPageProps) {
           </Space>
         </Space>
 
-        <Table<UserListItem>
-          rowKey="id"
-          loading={loading}
-          dataSource={listData}
-          scroll={{ x: 1340 }}
-          pagination={{
-            current: pagination.page,
-            pageSize: pagination.limit,
-            total: pagination.total,
-            showSizeChanger: true,
-            onChange: (page, pageSize) => {
-              void fetchUsers(page, pageSize)
-            },
-          }}
-          columns={[
-            { title: 'Tài khoản', dataIndex: 'taiKhoan', width: 140 },
-            { title: 'Họ và tên', dataIndex: 'hoVaTen', width: 180 },
-            {
-              title: 'Ngày sinh',
-              dataIndex: 'ngaySinh',
-              width: 120,
-              render: (value: string | null) =>
-                value ? dayjs(value).format('DD/MM/YYYY') : '-',
-            },
-            {
-              title: 'Giới tính',
-              dataIndex: 'gioiTinh',
-              width: 100,
-              render: (value: string | null) => value ?? '-',
-            },
-            { title: 'Số điện thoại', dataIndex: 'soDienThoai', width: 130 },
-            { title: 'Số giấy tờ', dataIndex: 'soGiayTo', width: 150 },
-            {
-              title: 'Địa chỉ',
-              dataIndex: 'diaChi',
-              width: 220,
-              render: (value: string | null) => value ?? '-',
-            },
-            {
-              title: 'Email',
-              dataIndex: 'email',
-              width: 180,
-              render: (value: string | null) => value ?? '-',
-            },
-            {
-              title: 'Quyền',
-              dataIndex: 'role',
-              width: 170,
-              render: (value: string, record) => (
-                <Tag color={record.isActive ? 'blue' : 'default'}>
-                  {record.roleLabel ?? roleLabelMap[value] ?? value}
-                </Tag>
-              ),
-            },
-            {
-              title: 'Tuyến phụ trách',
-              dataIndex: 'assignedRoutes',
-              width: 260,
-              render: (routes: UserListItem['assignedRoutes']) =>
-                routes && routes.length
-                  ? routes.map((item) => item.tenTuyen).join(', ')
-                  : '-',
-            },
-            {
-              title: 'Trạng thái',
-              dataIndex: 'isActive',
-              width: 120,
-              render: (value: boolean) =>
-                value ? <Tag color="green">Kích hoạt</Tag> : <Tag>Khóa</Tag>,
-            },
-            {
-              title: 'Thao tác',
-              key: 'actions',
-              fixed: 'right',
-              width: 140,
-              render: (_, record) => (
-                <Space>
-                  <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => openEditModal(record)}
-                    disabled={!record.isActive}
-                  />
-                  {record.isActive ? (
-                    <Popconfirm
-                      title="Xóa người dùng"
-                      description="Bạn chắc chắn muốn xóa người dùng này?"
-                      okText="Xóa"
-                      cancelText="Hủy"
-                      onConfirm={() => void onDeleteUser(record.id)}
-                    >
-                      <Button danger size="small" icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  ) : (
-                    <Button size="small" onClick={() => void onRestoreUser(record.id)}>
-                      Khôi phục
-                    </Button>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
-        />
+        {loading && listData.length === 0 ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <Table<UserListItem>
+            rowKey="id"
+            loading={loading}
+            dataSource={listData}
+            scroll={{ x: 1340 }}
+            pagination={{
+              current: pagination.page,
+              pageSize: pagination.limit,
+              total: pagination.total,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showTotal: (total) => `Tổng ${total} người dùng`,
+              onChange: (page, pageSize) => {
+                void fetchUsers(page, pageSize)
+              },
+            }}
+            columns={[
+              { title: 'Tài khoản', dataIndex: 'taiKhoan', width: 140 },
+              { title: 'Họ và tên', dataIndex: 'hoVaTen', width: 180 },
+              {
+                title: 'Ngày sinh',
+                dataIndex: 'ngaySinh',
+                width: 120,
+                render: (value: string | null) =>
+                  value ? dayjs(value).format('DD/MM/YYYY') : '-',
+              },
+              {
+                title: 'Giới tính',
+                dataIndex: 'gioiTinh',
+                width: 100,
+                render: (value: string | null) => value ?? '-',
+              },
+              { title: 'Số điện thoại', dataIndex: 'soDienThoai', width: 130 },
+              { title: 'Số giấy tờ', dataIndex: 'soGiayTo', width: 150 },
+              {
+                title: 'Địa chỉ',
+                dataIndex: 'diaChi',
+                width: 220,
+                render: (value: string | null) => value ?? '-',
+              },
+              {
+                title: 'Email',
+                dataIndex: 'email',
+                width: 180,
+                render: (value: string | null) => value ?? '-',
+              },
+              {
+                title: 'Vai trò',
+                dataIndex: 'role',
+                width: 140,
+                render: (code: string) => <Tag color="blue">{roleLabelMap[code] ?? code}</Tag>,
+              },
+              {
+                title: 'Tuyến được phân công',
+                key: 'assignedRoutes',
+                width: 220,
+                render: (_, record) => {
+                  const items = record.assignedRoutes ?? []
+                  if (items.length === 0) return '-'
+                  return (
+                    <Space size={4} wrap>
+                      {items.map((route) => (
+                        <Tag key={route.id} color="geekblue">
+                          {route.tenTuyen}
+                        </Tag>
+                      ))}
+                    </Space>
+                  )
+                },
+              },
+              {
+                title: 'Trạng thái',
+                dataIndex: 'isActive',
+                width: 120,
+                render: (value: boolean) =>
+                  value ? <Tag color="green">Hoạt động</Tag> : <Tag>Khóa</Tag>,
+              },
+              {
+                title: 'Thao tác',
+                key: 'actions',
+                width: 130,
+                fixed: 'right',
+                render: (_, record) => (
+                  <Space>
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditModal(record)}
+                      disabled={!record.isActive}
+                    />
+                    {record.isActive ? (
+                      <Popconfirm
+                        title="Xóa người dùng"
+                        description="Bạn chắc chắn muốn xóa người dùng này?"
+                        okText="Xóa"
+                        cancelText="Hủy"
+                        onConfirm={() => void onDeleteUser(record.id)}
+                      >
+                        <Button danger size="small" icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    ) : (
+                      <Button size="small" onClick={() => void onRestoreUser(record.id)}>
+                        Khôi phục
+                      </Button>
+                    )}
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        )}
       </Space>
 
       <Modal
@@ -436,13 +391,16 @@ export function UsersPage({ roles }: UsersPageProps) {
         onOk={() => void onSaveUser()}
         okText="Lưu"
         cancelText="Hủy"
-        okButtonProps={{ loading: saving }}
-        width={980}
+        confirmLoading={saving}
+        width={900}
       >
-        <Form
-          layout="vertical"
+        <Form<UserFormValues>
           form={form}
-          initialValues={{ role: roles[0]?.code ?? 'STAFF', isActive: true }}
+          layout="vertical"
+          initialValues={{
+            role: roles[0]?.code ?? 'STAFF',
+            isActive: true,
+          }}
         >
           <div className="form-grid">
             <Form.Item
@@ -450,19 +408,12 @@ export function UsersPage({ roles }: UsersPageProps) {
               name="taiKhoan"
               rules={[{ required: true, message: 'Bắt buộc nhập tài khoản' }]}
             >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label={editingUser ? 'Mật khẩu mới (không bắt buộc)' : 'Mật khẩu'}
-              name="matKhau"
-              rules={editingUser ? [] : [{ required: true, message: 'Bắt buộc nhập mật khẩu' }]}
-            >
-              <Input.Password />
+              <Input disabled={Boolean(editingUser)} />
             </Form.Item>
             <Form.Item
               label="Họ và tên"
               name="hoVaTen"
-              rules={[{ required: true, message: 'Bắt buộc nhập họ và tên' }]}
+              rules={[{ required: true, message: 'Bắt buộc nhập họ tên' }]}
             >
               <Input />
             </Form.Item>
@@ -470,8 +421,9 @@ export function UsersPage({ roles }: UsersPageProps) {
               <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
             </Form.Item>
             <Form.Item label="Giới tính" name="gioiTinh">
-              <Select allowClear options={genderOptions} />
+              <Input placeholder="Nam/Nữ/Khác" />
             </Form.Item>
+
             <Form.Item
               label="Số điện thoại"
               name="soDienThoai"
@@ -480,7 +432,7 @@ export function UsersPage({ roles }: UsersPageProps) {
               <Input />
             </Form.Item>
             <Form.Item
-              label="Số giấy tờ (CCCD/CMND)"
+              label="Số giấy tờ"
               name="soGiayTo"
               rules={[{ required: true, message: 'Bắt buộc nhập số giấy tờ' }]}
             >
@@ -489,10 +441,11 @@ export function UsersPage({ roles }: UsersPageProps) {
             <Form.Item label="Email" name="email">
               <Input />
             </Form.Item>
-            <Form.Item label="Địa chỉ" name="diaChi" className="full-col">
-              <Input.TextArea rows={2} />
-            </Form.Item>
-            <Form.Item label="Quyền" name="role" rules={[{ required: true }]}>
+            <Form.Item
+              label="Vai trò"
+              name="role"
+              rules={[{ required: true, message: 'Bắt buộc chọn vai trò' }]}
+            >
               <Select
                 options={roles.map((item) => ({
                   value: item.code,
@@ -500,12 +453,11 @@ export function UsersPage({ roles }: UsersPageProps) {
                 }))}
               />
             </Form.Item>
-            <Form.Item label="Tuyến phụ trách" name="routeIds" className="full-col">
+
+            <Form.Item label="Phân công tuyến đường" name="routeIds" className="full-col">
               <Select
                 mode="multiple"
                 allowClear
-                showSearch
-                optionFilterProp="label"
                 placeholder="Chọn một hoặc nhiều tuyến đường"
                 options={routeOptions.map((item) => ({
                   value: item.id,
@@ -513,13 +465,25 @@ export function UsersPage({ roles }: UsersPageProps) {
                 }))}
               />
             </Form.Item>
-            <Form.Item label="Trạng thái" name="isActive">
-              <Select
-                options={[
-                  { value: true, label: 'Kích hoạt' },
-                  { value: false, label: 'Khóa' },
-                ]}
-              />
+
+            <Form.Item
+              className="full-col"
+              label="Mật khẩu"
+              name="matKhau"
+              rules={
+                editingUser
+                  ? []
+                  : [{ required: true, message: 'Bắt buộc nhập mật khẩu khi tạo mới' }]
+              }
+              extra={editingUser ? 'Để trống nếu không muốn đổi mật khẩu' : undefined}
+            >
+              <Input.Password />
+            </Form.Item>
+            <Form.Item className="full-col" label="Địa chỉ" name="diaChi">
+              <Input.TextArea rows={2} />
+            </Form.Item>
+            <Form.Item label="Trạng thái" name="isActive" valuePropName="checked" className="full-col">
+              <Switch checkedChildren="Hoạt động" unCheckedChildren="Khóa" />
             </Form.Item>
           </div>
         </Form>

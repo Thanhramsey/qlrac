@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Statistic,
+  Skeleton,
   Table,
   Tag,
   Tooltip,
@@ -361,7 +362,7 @@ export function DebtManagementPage({ onViewHistory }: DebtManagementPageProps) {
             pageSize: limit,
             total,
             showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50],
+            pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (tot) => `Tổng ${tot} hộ đang nợ`,
             onChange: (nextPage, nextPageSize) => {
               void fetchDebt(nextPage, nextPageSize, filters)

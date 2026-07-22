@@ -6,6 +6,7 @@ import {
   Modal,
   Popconfirm,
   Select,
+  Skeleton,
   Space,
   Switch,
   Table,
@@ -483,11 +484,19 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                       Thêm tuyến đường
                     </Button>
                   </Space>
-                  <Table<RouteItem>
-                    rowKey="id"
-                    loading={routesLoading}
-                    dataSource={routes}
-                    pagination={false}
+                  {routesLoading && routes.length === 0 ? (
+                    <Skeleton active paragraph={{ rows: 6 }} />
+                  ) : (
+                    <Table<RouteItem>
+                      rowKey="id"
+                      loading={routesLoading}
+                      dataSource={routes}
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                        showTotal: (total) => `Tổng ${total} tuyến đường`,
+                      }}
                     columns={[
                       { title: 'Mã tuyến', dataIndex: 'maTuyen', width: 140 },
                       { title: 'Tên tuyến', dataIndex: 'tenTuyen', width: 220 },
@@ -554,6 +563,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                       },
                     ]}
                   />
+                  )}
                 </>
               ),
             },
@@ -580,11 +590,19 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             Thêm thôn/xóm/tổ
                           </Button>
                         </Space>
-                        <Table<LocalityItem>
-                          rowKey="id"
-                          loading={localitiesLoading}
-                          dataSource={localities}
-                          pagination={false}
+                        {localitiesLoading && localities.length === 0 ? (
+                          <Skeleton active paragraph={{ rows: 6 }} />
+                        ) : (
+                          <Table<LocalityItem>
+                            rowKey="id"
+                            loading={localitiesLoading}
+                            dataSource={localities}
+                            pagination={{
+                              pageSize: 10,
+                              showSizeChanger: true,
+                              pageSizeOptions: ['10', '20', '50', '100'],
+                              showTotal: (total) => `Tổng ${total} thôn/xóm/tổ`,
+                            }}
                           columns={[
                             { title: 'Mã thôn/xóm/tổ', dataIndex: 'maThonXomTo', width: 180 },
                             { title: 'Tên thôn/xóm/tổ', dataIndex: 'tenThonXomTo' },
@@ -633,6 +651,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             },
                           ]}
                         />
+                        )}
                       </>
                     ),
                   },
@@ -657,11 +676,19 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             Thêm phường/xã
                           </Button>
                         </Space>
-                        <Table<WardItem>
-                          rowKey="id"
-                          loading={wardsLoading}
-                          dataSource={wards}
-                          pagination={false}
+                        {wardsLoading && wards.length === 0 ? (
+                          <Skeleton active paragraph={{ rows: 6 }} />
+                        ) : (
+                          <Table<WardItem>
+                            rowKey="id"
+                            loading={wardsLoading}
+                            dataSource={wards}
+                            pagination={{
+                              pageSize: 10,
+                              showSizeChanger: true,
+                              pageSizeOptions: ['10', '20', '50', '100'],
+                              showTotal: (total) => `Tổng ${total} phường/xã`,
+                            }}
                           columns={[
                             { title: 'Mã phường/xã', dataIndex: 'maPhuongXa', width: 160 },
                             { title: 'Tên phường/xã', dataIndex: 'tenPhuongXa' },
@@ -705,6 +732,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             },
                           ]}
                         />
+                        )}
                       </>
                     ),
                   },
@@ -726,11 +754,19 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             Thêm tỉnh
                           </Button>
                         </Space>
-                        <Table<ProvinceItem>
-                          rowKey="id"
-                          loading={provincesLoading}
-                          dataSource={provinces}
-                          pagination={false}
+                        {provincesLoading && provinces.length === 0 ? (
+                          <Skeleton active paragraph={{ rows: 6 }} />
+                        ) : (
+                          <Table<ProvinceItem>
+                            rowKey="id"
+                            loading={provincesLoading}
+                            dataSource={provinces}
+                            pagination={{
+                              pageSize: 10,
+                              showSizeChanger: true,
+                              pageSizeOptions: ['10', '20', '50', '100'],
+                              showTotal: (total) => `Tổng ${total} tỉnh/thành`,
+                            }}
                           columns={[
                             { title: 'Mã tỉnh', dataIndex: 'maTinh', width: 160 },
                             { title: 'Tên tỉnh', dataIndex: 'tenTinh' },
@@ -767,6 +803,7 @@ export function LocationsPage({ visible, currentUserRole }: LocationsPageProps) 
                             },
                           ]}
                         />
+                        )}
                       </>
                     ),
                   },

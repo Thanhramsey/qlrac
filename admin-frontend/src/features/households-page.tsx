@@ -10,6 +10,7 @@ import {
   Popconfirm,
   Row,
   Select,
+  Skeleton,
   Space,
   Statistic,
   Switch,
@@ -38,6 +39,7 @@ import type {
   RouteItem,
   ServiceCatalogItem,
 } from '../types'
+import { useDebounce } from '../hooks/use-debounce'
 import { HouseholdHistoryModal } from '../components/HouseholdHistoryModal'
 
 type HouseholdFormValues = {
@@ -76,6 +78,10 @@ export function HouseholdsPage() {
     total: 0,
   })
   const [searchValues, setSearchValues] = useState<HouseholdSearchValues>({})
+  const [tenChuHoInput, setTenChuHoInput] = useState('')
+  const [diaChiInput, setDiaChiInput] = useState('')
+  const debouncedTenChuHo = useDebounce(tenChuHoInput, 400)
+  const debouncedDiaChi = useDebounce(diaChiInput, 400)
   const [includeInactive, setIncludeInactive] = useState(false)
 
   const [form] = Form.useForm<HouseholdFormValues>()
@@ -147,10 +153,18 @@ export function HouseholdsPage() {
   }
 
   useEffect(() => {
-    void fetchHouseholds(1, 10, {})
+    const updatedFilters: HouseholdSearchValues = {
+      ...searchValues,
+      tenChuHo: debouncedTenChuHo.trim() || undefined,
+      diaChi: debouncedDiaChi.trim() || undefined,
+    }
+    void fetchHouseholds(1, pagination.limit, updatedFilters)
+  }, [includeInactive, debouncedTenChuHo, debouncedDiaChi])
+
+  useEffect(() => {
     void fetchRoutes()
     void fetchServices()
-  }, [includeInactive])
+  }, [])
 
   const onSearch = async () => {
     const values = searchForm.getFieldsValue()
@@ -167,6 +181,8 @@ export function HouseholdsPage() {
 
   const onResetSearch = async () => {
     searchForm.resetFields()
+    setTenChuHoInput('')
+    setDiaChiInput('')
     const emptyFilters: HouseholdSearchValues = {}
     setSearchValues(emptyFilters)
     await fetchHouseholds(1, pagination.limit, emptyFilters)
@@ -362,10 +378,20 @@ export function HouseholdsPage() {
           <Form form={searchForm} layout="inline">
             <Space wrap size={8} style={{ width: '100%' }}>
               <Form.Item name="tenChuHo" style={{ marginBottom: 0 }}>
-                <Input style={{ width: 200 }} placeholder="Tên chủ hộ" />
+                <Input
+                  style={{ width: 200 }}
+                  placeholder="Tên chủ hộ"
+                  value={tenChuHoInput}
+                  onChange={(e) => setTenChuHoInput(e.target.value)}
+                />
               </Form.Item>
               <Form.Item name="diaChi" style={{ marginBottom: 0 }}>
-                <Input style={{ width: 240 }} placeholder="Địa chỉ" />
+                <Input
+                  style={{ width: 240 }}
+                  placeholder="Địa chỉ"
+                  value={diaChiInput}
+                  onChange={(e) => setDiaChiInput(e.target.value)}
+                />
               </Form.Item>
               <Form.Item name="serviceCatalogId" style={{ marginBottom: 0 }}>
                 <Select
@@ -375,6 +401,11 @@ export function HouseholdsPage() {
                   showSearch
                   optionFilterProp="label"
                   placeholder="Loại dịch vụ"
+                  onChange={(val) => {
+                    const next = { ...searchValues, serviceCatalogId: val }
+                    setSearchValues(next)
+                    void fetchHouseholds(1, pagination.limit, next)
+                  }}
                 />
               </Form.Item>
               <Form.Item name="tuyenThuRacId" style={{ marginBottom: 0 }}>
@@ -385,33 +416,38 @@ export function HouseholdsPage() {
                   showSearch
                   optionFilterProp="label"
                   placeholder="Tuyến đường"
+                  onChange={(val) => {
+                    const next = { ...searchValues, tuyenThuRacId: val }
+                    setSearchValues(next)
+                    void fetchHouseholds(1, pagination.limit, next)
+                  }}
                 />
               </Form.Item>
               <Form.Item style={{ marginBottom: 0 }}>
-                <Space>
-                  <Button type="primary" onClick={() => void onSearch()}>
-                    Tìm kiếm
-                  </Button>
-                  <Button onClick={() => void onResetSearch()}>Đặt lại</Button>
-                </Space>
+                <Button onClick={() => void onResetSearch()}>Đặt lại</Button>
               </Form.Item>
             </Space>
           </Form>
         </Card>
 
-        <Table<HouseholdItem>
-          rowKey="id"
-          loading={loading}
-          dataSource={listData}
-          scroll={{ x: 1600 }}
-          pagination={{
-            current: pagination.page,
-            pageSize: pagination.limit,
-            total: pagination.total,
-            showSizeChanger: true,
-            onChange: (page, pageSize) => void fetchHouseholds(page, pageSize, searchValues),
-          }}
-          columns={[
+        {loading && listData.length === 0 ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <Table<HouseholdItem>
+            rowKey="id"
+            loading={loading}
+            dataSource={listData}
+            scroll={{ x: 1600 }}
+            pagination={{
+              current: pagination.page,
+              pageSize: pagination.limit,
+              total: pagination.total,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50', '100'],
+              showTotal: (total) => `Tổng ${total} hộ dân`,
+              onChange: (page, pageSize) => void fetchHouseholds(page, pageSize, searchValues),
+            }}
+            columns={[
             { title: 'Mã KH', dataIndex: 'maHoDan', width: 120 },
             { title: 'Họ tên', dataIndex: 'tenChuHo', width: 180 },
             { title: 'Địa chỉ', dataIndex: 'diaChi', width: 220 },
@@ -492,6 +528,7 @@ export function HouseholdsPage() {
             },
           ]}
         />
+        )}
       </Space>
 
       <Modal

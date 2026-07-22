@@ -299,8 +299,11 @@ export class InvoicesService implements OnModuleInit {
       return {
         kyHoaDons,
         unpaidHouseholdCount: 0,
+        paidHouseholdCount: 0,
       };
     }
+
+
 
     const resolvedRouteIds = [...new Set((params.tuyenThuRacIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
     const resolvedServiceIds = [...new Set((params.serviceCatalogIds ?? []).filter((id) => Number.isInteger(id) && id > 0))];
@@ -318,29 +321,44 @@ export class InvoicesService implements OnModuleInit {
           ? allowedRouteIds
           : undefined;
 
-    const unpaidHouseholdCount = await this.prisma.invoice.count({
-      where: {
-        ...(kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {}),
-        trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
-        household: {
-          ...(keyword
-            ? {
-                OR: [
-                  { tenChuHo: { contains: keyword, mode: 'insensitive' } },
-                  { maHoDan: { contains: keyword, mode: 'insensitive' } },
-                  { diaChi: { contains: keyword, mode: 'insensitive' } },
-                ],
-              }
-            : {}),
-          ...(routeIdFilter ? { tuyenThuRacId: { in: routeIdFilter } } : {}),
-          ...(resolvedServiceIds.length > 0 ? { serviceCatalogId: { in: resolvedServiceIds } } : {}),
+
+    const householdFilter = {
+      ...(keyword
+        ? {
+            OR: [
+              { tenChuHo: { contains: keyword, mode: 'insensitive' as const } },
+              { maHoDan: { contains: keyword, mode: 'insensitive' as const } },
+              { diaChi: { contains: keyword, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+      ...(routeIdFilter ? { tuyenThuRacId: { in: routeIdFilter } } : {}),
+      ...(resolvedServiceIds.length > 0 ? { serviceCatalogId: { in: resolvedServiceIds } } : {}),
+    };
+
+    const kyFilter = kyHoaDons.length > 0 ? { kyHoaDon: { in: kyHoaDons } } : {};
+
+    const [unpaidHouseholdCount, paidHouseholdCount] = await this.prisma.$transaction([
+      this.prisma.invoice.count({
+        where: {
+          ...kyFilter,
+          trangThaiThanhToan: { notIn: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+          household: householdFilter,
         },
-      },
-    });
+      }),
+      this.prisma.invoice.count({
+        where: {
+          ...kyFilter,
+          trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
+          household: householdFilter,
+        },
+      }),
+    ]);
 
     return {
       kyHoaDons,
       unpaidHouseholdCount,
+      paidHouseholdCount,
     };
   }
 

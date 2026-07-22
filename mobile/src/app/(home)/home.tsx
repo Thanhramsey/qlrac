@@ -101,6 +101,7 @@ interface MobileHouseholdsResponse {
 interface MobileUnpaidCountResponse {
   kyHoaDons: string[];
   unpaidHouseholdCount: number;
+  paidHouseholdCount: number;
 }
 
 interface HouseholdHistoryResponse {
@@ -202,6 +203,7 @@ export default function HomeRoute() {
   const [invoices, setInvoices] = useState<HouseholdInvoiceItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [unpaidCount, setUnpaidCount] = useState(0);
+  const [paidCount, setPaidCount] = useState(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -377,6 +379,7 @@ export default function HomeRoute() {
           },
         });
         setUnpaidCount(Number(response.data?.unpaidHouseholdCount ?? 0));
+        setPaidCount(Number(response.data?.paidHouseholdCount ?? 0));
       } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined;
         if (status === 401 || status === 403) {
@@ -427,6 +430,11 @@ export default function HomeRoute() {
       const defaultKy = periodOptions[0]?.maKy ?? '';
       setSelectedKyHoaDons(defaultKy ? [defaultKy] : []);
 
+      // Load unpaid count for the default billing period immediately
+      await loadUnpaidCount({
+        kyHoaDons: defaultKy ? [defaultKy] : [],
+      });
+
       if (!defaultKy) {
         await loadHouseholds({
           kyHoaDons: undefined,
@@ -442,7 +450,7 @@ export default function HomeRoute() {
     } finally {
       setBooting(false);
     }
-  }, [loadHouseholds, router]);
+  }, [loadHouseholds, loadUnpaidCount, router]);
 
   const refreshHomeData = useCallback(async () => {
     if (!session?.accessToken) {
@@ -878,38 +886,65 @@ export default function HomeRoute() {
 
   const renderHeader = () => (
     <View style={styles.flatListHeader}>
-      <View style={styles.headerCard}>
+      {/* Premium Header Banner */}
+      <View style={styles.headerBanner}>
+        {/* Decorative circles */}
+        <View style={styles.headerDecorCircle1} />
+        <View style={styles.headerDecorCircle2} />
+
+        {/* Top row: App name + action buttons */}
         <View style={styles.headerTopRow}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.title} numberOfLines={1}>Quản lý thu tiền rác</Text>
-            <Text style={styles.dateText}>{today}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerAppName}>🗑️ Thu tiền rác</Text>
+            <Text style={styles.headerDateText}>{today}</Text>
           </View>
           <View style={styles.headerActions}>
             <Pressable
               onPress={() => void refreshHomeData()}
               disabled={refreshing}
-              style={({ pressed }) => [styles.refreshButton, (pressed || refreshing) && styles.buttonPressed]}>
-              <Text style={styles.refreshIcon}>{refreshing ? '...' : '↻'}</Text>
+              style={({ pressed }) => [styles.headerIconBtn, (pressed || refreshing) && { opacity: 0.6 }]}>
+              <Text style={styles.headerIconBtnText}>{refreshing ? '⟳' : '↻'}</Text>
             </Pressable>
-            <Pressable onPress={showUnpaidNotice} style={styles.noticeButton}>
-              <Text style={styles.noticeIcon}>🔔</Text>
-              <View style={styles.noticeBadge}>
-                <Text style={styles.noticeBadgeText}>{unpaidCount}</Text>
+            <Pressable onPress={showUnpaidNotice} style={styles.headerIconBtn}>
+              <Text style={styles.headerIconBtnText}>🔔</Text>
+              {unpaidCount > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{unpaidCount > 99 ? '99+' : unpaidCount}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable onPress={toggleDrawer} style={styles.headerMenuBtn}>
+              <View style={styles.headerMenuLines}>
+                <View style={styles.headerMenuLine} />
+                <View style={[styles.headerMenuLine, { width: 14 }]} />
+                <View style={styles.headerMenuLine} />
               </View>
+              <Text style={styles.headerMenuBtnText}>Menu</Text>
             </Pressable>
-            <Pressable onPress={toggleDrawer} style={styles.drawerToggleButton}>
-              <Text style={styles.drawerToggleButtonText}>☰ Menu</Text>
-            </Pressable>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{session?.user.hoVaTen?.slice(0, 1) ?? 'U'}</Text>
-            </View>
           </View>
         </View>
 
-        <View style={styles.userInfoRow}>
-          <Text style={styles.userName}>{session?.user.hoVaTen}</Text>
-          <View style={styles.roleChip}>
-            <Text style={styles.roleText}>{session?.user.role}</Text>
+        {/* Bottom row: Avatar + User info */}
+        <View style={styles.headerUserRow}>
+          <View style={styles.headerAvatarWrap}>
+            <View style={styles.headerAvatar}>
+              <Text style={styles.headerAvatarText}>{session?.user.hoVaTen?.slice(0, 1)?.toUpperCase() ?? 'U'}</Text>
+            </View>
+            <View style={styles.headerAvatarBadgeDot} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerUserName} numberOfLines={1}>{session?.user.hoVaTen ?? '---'}</Text>
+            <Text style={styles.headerUserMeta} numberOfLines={1}>
+              {session?.user.taiKhoan} • {session?.user.role === 'ADMIN' ? 'Quản trị viên' : session?.user.role === 'MANAGER' ? 'Quản lý' : 'Nhân viên thu'}
+            </Text>
+          </View>
+          <View style={[styles.headerUnpaidBox, { borderColor: 'rgba(74,222,128,0.4)', backgroundColor: 'rgba(74,222,128,0.1)' }]}>
+            <Text style={[styles.headerUnpaidNum, { color: '#4ade80' }]}>{paidCount}</Text>
+            <Text style={styles.headerUnpaidLbl}>đã thu</Text>
+          </View>
+          <View style={[styles.headerUnpaidBox, { borderColor: 'rgba(251,191,36,0.4)', backgroundColor: 'rgba(251,191,36,0.1)' }]}>
+            <Text style={[styles.headerUnpaidNum, { color: '#fbbf24' }]}>{unpaidCount}</Text>
+            <Text style={styles.headerUnpaidLbl}>chưa thu</Text>
           </View>
         </View>
       </View>
@@ -1520,6 +1555,188 @@ const styles = StyleSheet.create({
     width: 24,
     zIndex: 5,
   },
+  // === PREMIUM HEADER BANNER ===
+  headerBanner: {
+    backgroundColor: '#0c7a5c',
+    borderRadius: 20,
+    padding: 18,
+    paddingBottom: 16,
+    gap: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#063d2c',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  headerDecorCircle1: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    top: -60,
+    right: -40,
+  },
+  headerDecorCircle2: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    bottom: -30,
+    left: 20,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  headerAppName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  headerDateText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  headerIconBtnText: {
+    fontSize: 18,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#0c7a5c',
+  },
+  headerBadgeText: {
+    color: '#1c0000',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  headerMenuBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  headerMenuLines: {
+    gap: 3.5,
+  },
+  headerMenuLine: {
+    width: 18,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#ffffff',
+  },
+  headerMenuBtnText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  headerUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+  },
+  headerAvatarWrap: {
+    position: 'relative',
+  },
+  headerAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  headerAvatarText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  headerAvatarBadgeDot: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    backgroundColor: '#4ade80',
+    borderWidth: 2,
+    borderColor: '#0c7a5c',
+  },
+  headerUserName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  headerUserMeta: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  headerUnpaidBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    minWidth: 60,
+  },
+  headerUnpaidNum: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fbbf24',
+    lineHeight: 24,
+  },
+  headerUnpaidLbl: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+  },
+  // Legacy stubs kept for other usages
   headerCard: {
     borderRadius: 16,
     padding: 16,
@@ -1527,17 +1744,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d5e6e0',
     gap: 10,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   refreshButton: {
     width: 40,

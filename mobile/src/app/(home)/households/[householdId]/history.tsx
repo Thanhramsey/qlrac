@@ -41,8 +41,8 @@ function buildReceiptHtml(invoice: any, payload?: any) {
   const qrImageUrl = (qrThanhToan && qrThanhToan.startsWith('http'))
     ? qrThanhToan
     : (payload?.companyAccountNumber
-        ? `https://img.vietqr.io/image/VietinBank-${payload.companyAccountNumber.replace(/[^a-zA-Z0-9]/g, '')}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(`TT TIEN RAC ${invoice.household?.maHoDan || ''}`.trim())}`
-        : (qrThanhToan ? (qrThanhToan.startsWith('/') ? `${API_BASE_URL}${qrThanhToan}` : qrThanhToan) : ''));
+      ? `https://img.vietqr.io/image/VietinBank-${payload.companyAccountNumber.replace(/[^a-zA-Z0-9]/g, '')}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(`TT TIEN RAC ${invoice.household?.maHoDan || ''}`.trim())}`
+      : (qrThanhToan ? (qrThanhToan.startsWith('/') ? `${API_BASE_URL}${qrThanhToan}` : qrThanhToan) : ''));
 
   return `<!doctype html>
 <html lang="vi">
@@ -239,7 +239,7 @@ export default function HouseholdHistoryRoute() {
     visible: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const showConfirm = (config: {
@@ -487,26 +487,26 @@ export default function HouseholdHistoryRoute() {
         </View>
 
         <View style={styles.headerActions}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.actionBtn, styles.secondaryButton, pressed && styles.pressed]}>
             <Text style={styles.secondaryButtonText}>← Quay lại</Text>
-          </Pressable>
-          <Pressable
-            onPress={submitCollect}
-            disabled={actionLoading}
-            style={({ pressed }) => [styles.primaryButton, styles.collectButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>💰 Thu tiền đã chọn</Text>
           </Pressable>
           <Pressable
             onPress={() => void printReceiptSelected()}
             disabled={actionLoading}
-            style={({ pressed }) => [styles.primaryButton, styles.printButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>🖨 In phiếu đã chọn {selectedCount > 0 ? `(${selectedCount})` : ''}</Text>
+            style={({ pressed }) => [styles.actionBtn, styles.primaryButton, styles.printButton, pressed && styles.pressed]}>
+            <Text style={styles.primaryButtonText}>🖨 In {selectedCount > 0 ? `(${selectedCount})` : ''}</Text>
+          </Pressable>
+          <Pressable
+            onPress={submitCollect}
+            disabled={actionLoading}
+            style={({ pressed }) => [styles.actionBtn, styles.primaryButton, styles.collectButton, pressed && styles.pressed]}>
+            <Text style={styles.primaryButtonText}>💰 Thu tiền</Text>
           </Pressable>
           <Pressable
             onPress={submitPublish}
             disabled={actionLoading}
-            style={({ pressed }) => [styles.primaryButton, styles.publishButton, pressed && styles.pressed]}>
-            <Text style={styles.primaryButtonText}>🧾 Xuất hóa đơn bù</Text>
+            style={({ pressed }) => [styles.actionBtn, styles.primaryButton, styles.publishButton, pressed && styles.pressed]}>
+            <Text style={styles.primaryButtonText}>🧾 Xuất HĐ</Text>
           </Pressable>
         </View>
       </View>
@@ -680,16 +680,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 6,
   },
-  primaryButton: {
-    minHeight: 42,
+  actionBtn: {
+    flex: 1,
+    minWidth: '45%' as unknown as number,
+    minHeight: 40,
     borderRadius: 12,
-    backgroundColor: '#0d8a6a',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   collectButton: {
     backgroundColor: '#1f9e63',
@@ -700,15 +704,21 @@ const styles = StyleSheet.create({
   publishButton: {
     backgroundColor: '#2f6ea8',
   },
+  primaryButton: {
+    backgroundColor: '#0d8a6a',
+  },
   secondaryButton: {
-    minHeight: 42,
+    minHeight: 40,
+    flex: 1,
+    minWidth: '45%' as unknown as number,
     borderRadius: 12,
     backgroundColor: '#e8f3ef',
     borderWidth: 1,
     borderColor: '#cfe1db',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   primaryButtonText: {
     color: '#ffffff',

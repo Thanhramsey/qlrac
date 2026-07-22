@@ -5,6 +5,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Modal,
   PanResponder,
   Pressable,
   Platform,
@@ -185,7 +186,15 @@ export default function HomeRoute() {
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'PAID' | 'UNPAID' | 'PUBLISHED'>('ALL');
   const [expandedFilter, setExpandedFilter] = useState<'period' | 'route' | 'service' | 'status' | null>(null);
   const [filterCollapsed, setFilterCollapsed] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [modalActiveTab, setModalActiveTab] = useState<'ky' | 'tuyen' | 'dichVu' | 'trangThai'>('ky');
   const [searchText, setSearchText] = useState('');
+
+  const activeFilterCount =
+    selectedKyHoaDons.length +
+    selectedRouteIds.length +
+    selectedServiceIds.length +
+    (selectedStatus !== 'ALL' ? 1 : 0);
 
   const [invoices, setInvoices] = useState<HouseholdInvoiceItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -803,12 +812,10 @@ export default function HomeRoute() {
 
   const renderHeader = () => (
     <View style={styles.flatListHeader}>
-      {expandedFilter ? <Pressable style={styles.outsideFilterOverlay} onPress={() => setExpandedFilter(null)} /> : null}
-
       <View style={styles.headerCard}>
         <View style={styles.headerTopRow}>
           <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.title} numberOfLines={1}>Quản lý thu tiền</Text>
+            <Text style={styles.title} numberOfLines={1}>Quản lý thu tiền rác</Text>
             <Text style={styles.dateText}>{today}</Text>
           </View>
           <View style={styles.headerActions}>
@@ -825,7 +832,7 @@ export default function HomeRoute() {
               </View>
             </Pressable>
             <Pressable onPress={toggleDrawer} style={styles.drawerToggleButton}>
-              <Text style={styles.drawerToggleButtonText}>☰</Text>
+              <Text style={styles.drawerToggleButtonText}>☰ Menu</Text>
             </Pressable>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>{session?.user.hoVaTen?.slice(0, 1) ?? 'U'}</Text>
@@ -833,246 +840,191 @@ export default function HomeRoute() {
           </View>
         </View>
 
-        <Text style={styles.userName}>{session?.user.hoVaTen}</Text>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText}>Tài khoản: {session?.user.taiKhoan}</Text>
+        <View style={styles.userInfoRow}>
+          <Text style={styles.userName}>{session?.user.hoVaTen}</Text>
           <View style={styles.roleChip}>
             <Text style={styles.roleText}>{session?.user.role}</Text>
           </View>
         </View>
-
-        <Text style={styles.baseUrl}>API: {API_BASE_URL}</Text>
       </View>
 
-      <View style={styles.sectionWrap}>
-        <Pressable onPress={() => setFilterCollapsed(!filterCollapsed)} style={styles.filterHeaderPressable}>
-          <Text style={styles.sectionTitle}>Bộ lọc tìm kiếm</Text>
-          <Text style={styles.filterToggleText}>{filterCollapsed ? 'Hiện bộ lọc ▾' : 'Thu gọn ▴'}</Text>
-        </Pressable>
-
-        {!filterCollapsed && (
-          <View style={styles.filterCard}>
-            <View style={styles.filterGrid}>
-              <View style={styles.filterField}>
-                <Text style={styles.filterLabel}>Kỳ hóa đơn</Text>
-                <Pressable
-                  onPress={() => setExpandedFilter((current) => (current === 'period' ? null : 'period'))}
-                  style={({ pressed }) => [styles.selectShell, pressed && styles.buttonPressed]}>
-                  <View style={styles.selectIconWrap}>
-                    <Text style={styles.selectIcon}>{expandedFilter === 'period' ? '▴' : '▾'}</Text>
-                  </View>
-                  <Text style={styles.selectValueText}>{selectedKyLabel}</Text>
-                </Pressable>
-                {expandedFilter === 'period' ? (
-                  <View style={styles.multiSelectPanel}>
-                    <Pressable onPress={() => setSelectedKyHoaDons([])} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedKyHoaDons.length === 0 && styles.multiOptionTextActive]}>
-                        Tất cả kỳ hóa đơn
-                      </Text>
-                      {selectedKyHoaDons.length === 0 ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    {billingPeriods.map((item) => {
-                      const selected = selectedKyHoaDons.includes(item.maKy);
-                      return (
-                        <Pressable key={item.id} onPress={() => toggleKy(item.maKy)} style={styles.multiOptionRow}>
-                          <Text style={[styles.multiOptionText, selected && styles.multiOptionTextActive]}>
-                            {item.tenKy}
-                          </Text>
-                          {selected ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.filterField}>
-                <Text style={styles.filterLabel}>Tuyến đường</Text>
-                <Pressable
-                  onPress={() => setExpandedFilter((current) => (current === 'route' ? null : 'route'))}
-                  style={({ pressed }) => [styles.selectShell, pressed && styles.buttonPressed]}>
-                  <View style={styles.selectIconWrap}>
-                    <Text style={styles.selectIcon}>{expandedFilter === 'route' ? '▴' : '▾'}</Text>
-                  </View>
-                  <Text style={styles.selectValueText}>{selectedRouteLabel}</Text>
-                </Pressable>
-                {expandedFilter === 'route' ? (
-                  <View style={styles.multiSelectPanel}>
-                    <Pressable onPress={() => setSelectedRouteIds([])} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedRouteIds.length === 0 && styles.multiOptionTextActive]}>
-                        Tất cả tuyến đường
-                      </Text>
-                      {selectedRouteIds.length === 0 ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    {routes.map((routeItem) => {
-                      const selected = selectedRouteIds.includes(routeItem.id);
-                      return (
-                        <Pressable key={routeItem.id} onPress={() => toggleRoute(routeItem.id)} style={styles.multiOptionRow}>
-                          <Text style={[styles.multiOptionText, selected && styles.multiOptionTextActive]}>
-                            {routeItem.maTuyen} - {routeItem.tenTuyen}
-                          </Text>
-                          {selected ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.filterField}>
-                <Text style={styles.filterLabel}>Dịch vụ</Text>
-                <Pressable
-                  onPress={() => setExpandedFilter((current) => (current === 'service' ? null : 'service'))}
-                  style={({ pressed }) => [styles.selectShell, pressed && styles.buttonPressed]}>
-                  <View style={styles.selectIconWrap}>
-                    <Text style={styles.selectIcon}>{expandedFilter === 'service' ? '▴' : '▾'}</Text>
-                  </View>
-                  <Text style={styles.selectValueText}>{selectedServiceLabel}</Text>
-                </Pressable>
-                {expandedFilter === 'service' ? (
-                  <View style={styles.multiSelectPanel}>
-                    <Pressable onPress={() => setSelectedServiceIds([])} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedServiceIds.length === 0 && styles.multiOptionTextActive]}>
-                        Tất cả dịch vụ
-                      </Text>
-                      {selectedServiceIds.length === 0 ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    {services.map((serviceItem) => {
-                      const selected = selectedServiceIds.includes(serviceItem.id);
-                      return (
-                        <Pressable key={serviceItem.id} onPress={() => toggleService(serviceItem.id)} style={styles.multiOptionRow}>
-                          <Text style={[styles.multiOptionText, selected && styles.multiOptionTextActive]}>
-                            {serviceItem.tenDichVu}
-                          </Text>
-                          {selected ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.filterField}>
-                <Text style={styles.filterLabel}>Trạng thái thanh toán</Text>
-                <Pressable
-                  onPress={() => setExpandedFilter((current) => (current === 'status' ? null : 'status'))}
-                  style={({ pressed }) => [styles.selectShell, pressed && styles.buttonPressed]}>
-                  <View style={styles.selectIconWrap}>
-                    <Text style={styles.selectIcon}>{expandedFilter === 'status' ? '▴' : '▾'}</Text>
-                  </View>
-                  <Text style={styles.selectValueText}>
-                    {selectedStatus === 'ALL' ? 'Tất cả' : selectedStatus === 'PAID' ? 'Đã thu (chưa xuất HĐ)' : selectedStatus === 'PUBLISHED' ? 'Đã xuất hóa đơn' : 'Chưa thu'}
-                  </Text>
-                </Pressable>
-                {expandedFilter === 'status' ? (
-                  <View style={styles.multiSelectPanel}>
-                    <Pressable onPress={() => { setSelectedStatus('ALL'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedStatus === 'ALL' && styles.multiOptionTextActive]}>
-                        Tất cả
-                      </Text>
-                      {selectedStatus === 'ALL' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    <Pressable onPress={() => { setSelectedStatus('PAID'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedStatus === 'PAID' && styles.multiOptionTextActive]}>
-                        Đã thu (chưa xuất HĐ)
-                      </Text>
-                      {selectedStatus === 'PAID' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    <Pressable onPress={() => { setSelectedStatus('PUBLISHED'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedStatus === 'PUBLISHED' && styles.multiOptionTextActive]}>
-                        Đã xuất hóa đơn
-                      </Text>
-                      {selectedStatus === 'PUBLISHED' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                    <Pressable onPress={() => { setSelectedStatus('UNPAID'); setExpandedFilter(null); }} style={styles.multiOptionRow}>
-                      <Text style={[styles.multiOptionText, selectedStatus === 'UNPAID' && styles.multiOptionTextActive]}>
-                        Chưa thu
-                      </Text>
-                      {selectedStatus === 'UNPAID' ? <Text style={styles.multiOptionCheck}>✓</Text> : null}
-                    </Pressable>
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={[styles.filterField, styles.filterFieldFull]}>
-                <Text style={styles.filterLabel}>Tìm theo tên</Text>
-                <TextInput
-                  value={searchText}
-                  onChangeText={setSearchText}
-                  placeholder="Nhập tên chủ hộ, mã hộ dân hoặc địa chỉ"
-                  style={styles.searchInput}
-                />
-              </View>
-            </View>
-
-            <View style={styles.filterActionRow}>
-              <Pressable
-                onPress={() => void runSearch()}
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}>
-                <Text style={styles.primaryButtonText}>Tìm kiếm</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.sectionWrap}>
-        <View style={styles.listHeaderRow}>
-          <Text style={styles.sectionTitle}>Danh sách hộ dân</Text>
-          <Text style={styles.countText}>{totalItems} hộ</Text>
+      {/* Streamlined Compact Search & Filter Section */}
+      <View style={styles.compactFilterCard}>
+        <View style={styles.searchBarRow}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmitEditing={() => void runSearch()}
+            placeholder="Tìm tên chủ hộ, mã hộ, địa chỉ..."
+            placeholderTextColor="#8aa69b"
+            style={styles.compactSearchInput}
+          />
+          {searchText ? (
+            <Pressable onPress={() => { setSearchText(''); void runSearch(); }} style={styles.clearSearchBtn}>
+              <Text style={styles.clearSearchText}>✕</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => void runSearch()} style={({ pressed }) => [styles.searchSubmitBtn, pressed && styles.buttonPressed]}>
+            <Text style={styles.searchSubmitText}>Tìm</Text>
+          </Pressable>
         </View>
+
+        {/* Quick Horizontal Filter Pills Bar */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsScroll}>
+          <Pressable
+            onPress={() => setFilterModalVisible(true)}
+            style={({ pressed }) => [
+              styles.filterPillMain,
+              activeFilterCount > 0 && styles.filterPillActive,
+              pressed && styles.buttonPressed,
+            ]}>
+            <Text style={[styles.filterPillMainText, activeFilterCount > 0 && styles.filterPillActiveText]}>
+              ⚙️ Bộ lọc {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setModalActiveTab('ky'); setFilterModalVisible(true); }}
+            style={({ pressed }) => [
+              styles.filterPill,
+              selectedKyHoaDons.length > 0 && styles.filterPillActive,
+              pressed && styles.buttonPressed,
+            ]}>
+            <Text style={[styles.filterPillText, selectedKyHoaDons.length > 0 && styles.filterPillActiveText]}>
+              📅 {selectedKyHoaDons.length === 0 ? 'Kỳ: Tất cả' : `${selectedKyHoaDons.length} kỳ`}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setModalActiveTab('tuyen'); setFilterModalVisible(true); }}
+            style={({ pressed }) => [
+              styles.filterPill,
+              selectedRouteIds.length > 0 && styles.filterPillActive,
+              pressed && styles.buttonPressed,
+            ]}>
+            <Text style={[styles.filterPillText, selectedRouteIds.length > 0 && styles.filterPillActiveText]}>
+              🛣️ {selectedRouteIds.length === 0 ? 'Tuyến: Tất cả' : `${selectedRouteIds.length} tuyến`}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setModalActiveTab('trangThai'); setFilterModalVisible(true); }}
+            style={({ pressed }) => [
+              styles.filterPill,
+              selectedStatus !== 'ALL' && styles.filterPillActive,
+              pressed && styles.buttonPressed,
+            ]}>
+            <Text style={[styles.filterPillText, selectedStatus !== 'ALL' && styles.filterPillActiveText]}>
+              💳 {selectedStatus === 'ALL' ? 'TT: Tất cả' : selectedStatus === 'UNPAID' ? 'Chưa thu' : selectedStatus === 'PAID' ? 'Đã thu' : 'Đã xuất HĐ'}
+            </Text>
+          </Pressable>
+
+          {activeFilterCount > 0 ? (
+            <Pressable
+              onPress={() => {
+                setSelectedKyHoaDons([]);
+                setSelectedRouteIds([]);
+                setSelectedServiceIds([]);
+                setSelectedStatus('ALL');
+              }}
+              style={styles.filterPillClear}>
+              <Text style={styles.filterPillClearText}>✕ Xóa lọc</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      </View>
+
+      <View style={styles.listHeaderRow}>
+        <Text style={styles.sectionTitle}>Danh sách hộ dân</Text>
+        <Text style={styles.countBadge}>{totalItems} hộ</Text>
       </View>
     </View>
   );
 
-  const renderItem = ({ item }: { item: HouseholdInvoiceItem }) => (
-    <Pressable
-      key={item.id}
-      onPress={() => openHouseholdDetail(item.householdId, item.kyHoaDon)}
-      style={({ pressed }) => [styles.householdCard, pressed && styles.householdCardPressed]}>
-      <View style={styles.householdTopRow}>
-        <View style={styles.householdMetaWrap}>
-          <Text style={styles.householdCode}>{item.household?.maHoDan ?? '---'}</Text>
-          <Text style={styles.householdName}>{item.household?.tenChuHo ?? '---'}</Text>
-        </View>
+  const renderItem = ({ item }: { item: HouseholdInvoiceItem }) => {
+    const isPaid = item.trangThaiThanhToan === 'PAID';
+    const isPublished = item.trangThaiThanhToan === 'PUBLISHED';
+    const isOverdue = item.trangThaiThanhToan === 'OVERDUE';
 
-        <View
-          style={[
-            styles.statusChip,
-            item.trangThaiThanhToan === 'PAID'
-              ? styles.statusPaid
-              : item.trangThaiThanhToan === 'PUBLISHED'
-                ? styles.statusPublished
-                : item.trangThaiThanhToan === 'OVERDUE'
-                  ? styles.statusDebt
-                  : item.trangThaiThanhToan === 'UNPAID'
-                    ? styles.statusUnpaid
+    const statusBorderColor = isPublished
+      ? '#0d8a6a'
+      : isPaid
+        ? '#2563eb'
+        : isOverdue
+          ? '#d97706'
+          : '#e11d48';
+
+    return (
+      <Pressable
+        key={item.id}
+        onPress={() => openHouseholdDetail(item.householdId, item.kyHoaDon)}
+        style={({ pressed }) => [
+          styles.householdCard,
+          { borderLeftColor: statusBorderColor, borderLeftWidth: 5 },
+          pressed && styles.householdCardPressed,
+        ]}>
+        <View style={styles.householdTopRow}>
+          <View style={styles.householdMetaWrap}>
+            <View style={styles.codeTagRow}>
+              <Text style={styles.householdCodeTag}>#{item.household?.maHoDan ?? '---'}</Text>
+              {item.household?.soDienThoai ? (
+                <Text style={styles.householdPhoneText}>📞 {item.household.soDienThoai}</Text>
+              ) : null}
+            </View>
+            <Text style={styles.householdName} numberOfLines={1}>{item.household?.tenChuHo ?? '---'}</Text>
+          </View>
+
+          <View
+            style={[
+              styles.statusChip,
+              isPaid
+                ? styles.statusPaid
+                : isPublished
+                  ? styles.statusPublished
+                  : isOverdue
+                    ? styles.statusDebt
                     : styles.statusUnpaid,
-          ]}>
-          <Text style={styles.statusText}>{getStatusLabel(item.trangThaiThanhToan)}</Text>
+            ]}>
+            <Text
+              style={[
+                styles.statusText,
+                isPublished
+                  ? { color: '#0d8a6a' }
+                  : isPaid
+                    ? { color: '#1d4ed8' }
+                    : isOverdue
+                      ? { color: '#d97706' }
+                      : { color: '#e11d48' },
+              ]}>
+              {getStatusLabel(item.trangThaiThanhToan)}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      <Text style={styles.householdAddress}>{item.household?.diaChi ?? '---'}</Text>
-
-      <View style={styles.householdInfoRow}>
-        <Text style={styles.householdInfo}>Kỳ: {item.kyHoaDon}</Text>
-        <Text style={styles.householdInfo}>Tổng cộng: {formatCurrency(item.tongCong)}</Text>
-      </View>
-
-      <View style={styles.householdInfoRow}>
-        <Text style={styles.householdInfo}>
-          Tuyến: {item.household?.tuyenThuRac?.tenTuyen ?? '---'}
+        <Text style={styles.householdAddress} numberOfLines={2}>
+          📍 {item.household?.diaChi ?? '---'}
         </Text>
-        <Text style={styles.householdInfo}>Dịch vụ: {item.household?.serviceCatalog?.tenDichVu ?? '---'}</Text>
-      </View>
-      <View style={styles.householdFooterRow}>
-        <Text style={styles.householdHint}>Chạm để xem chi tiết hộ dân</Text>
-        <Text style={styles.householdChevron}>›</Text>
-      </View>
-    </Pressable>
-  );
+
+        <View style={styles.householdInfoRow}>
+          <Text style={styles.householdInfoBadge} numberOfLines={1}>
+            🛣️ {item.household?.tuyenThuRac?.tenTuyen ?? 'Chưa phân tuyến'}
+          </Text>
+          <Text style={styles.householdInfoBadge} numberOfLines={1}>
+            🏷️ {item.household?.serviceCatalog?.tenDichVu ?? 'Rác sinh hoạt'}
+          </Text>
+        </View>
+
+        <View style={styles.householdFooterRow}>
+          <View style={styles.pricePeriodBox}>
+            <Text style={styles.householdPeriodText}>Kỳ: {item.kyHoaDon}</Text>
+            <Text style={styles.householdPriceText}>{formatCurrency(item.tongCong)}</Text>
+          </View>
+          <Text style={styles.householdChevron}>›</Text>
+        </View>
+      </Pressable>
+    );
+  };
 
   const renderFooter = () => (
     <View style={{ gap: 14 }}>
@@ -1183,6 +1135,180 @@ export default function HomeRoute() {
         {!drawerOpen ? <View style={styles.edgeSwipeArea} {...edgeSwipeResponder.panHandlers} /> : null}
         {renderMainContent()}
       </View>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setFilterModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdropPress} onPress={() => setFilterModalVisible(false)} />
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Bộ lọc tìm kiếm</Text>
+                <Text style={styles.modalSubTitle}>Chọn điều kiện để lọc danh sách thu tiền</Text>
+              </View>
+              <Pressable onPress={() => setFilterModalVisible(false)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Modal Tabs Bar */}
+            <View style={styles.modalTabsRow}>
+              <Pressable
+                onPress={() => setModalActiveTab('ky')}
+                style={[styles.modalTab, modalActiveTab === 'ky' && styles.modalTabActive]}>
+                <Text style={[styles.modalTabText, modalActiveTab === 'ky' && styles.modalTabTextActive]}>
+                  Kỳ ({selectedKyHoaDons.length || 'Tất cả'})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setModalActiveTab('tuyen')}
+                style={[styles.modalTab, modalActiveTab === 'tuyen' && styles.modalTabActive]}>
+                <Text style={[styles.modalTabText, modalActiveTab === 'tuyen' && styles.modalTabTextActive]}>
+                  Tuyến ({selectedRouteIds.length || 'Tất cả'})
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setModalActiveTab('dichVu')}
+                style={[styles.modalTab, modalActiveTab === 'dichVu' && styles.modalTabActive]}>
+                <Text style={[styles.modalTabText, modalActiveTab === 'dichVu' && styles.modalTabTextActive]}>
+                  Dịch vụ
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setModalActiveTab('trangThai')}
+                style={[styles.modalTab, modalActiveTab === 'trangThai' && styles.modalTabActive]}>
+                <Text style={[styles.modalTabText, modalActiveTab === 'trangThai' && styles.modalTabTextActive]}>
+                  Trạng thái
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Modal Body */}
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {modalActiveTab === 'ky' && (
+                <View style={styles.modalOptionsGroup}>
+                  <Pressable onPress={() => setSelectedKyHoaDons([])} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedKyHoaDons.length === 0 && styles.modalOptionTextActive]}>
+                      Tất cả kỳ hóa đơn
+                    </Text>
+                    {selectedKyHoaDons.length === 0 ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  {billingPeriods.map((item) => {
+                    const selected = selectedKyHoaDons.includes(item.maKy);
+                    return (
+                      <Pressable key={item.id} onPress={() => toggleKy(item.maKy)} style={styles.modalOptionRow}>
+                        <Text style={[styles.modalOptionText, selected && styles.modalOptionTextActive]}>
+                          Kỳ: {item.tenKy} ({item.maKy})
+                        </Text>
+                        {selected ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              {modalActiveTab === 'tuyen' && (
+                <View style={styles.modalOptionsGroup}>
+                  <Pressable onPress={() => setSelectedRouteIds([])} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedRouteIds.length === 0 && styles.modalOptionTextActive]}>
+                      Tất cả tuyến đường
+                    </Text>
+                    {selectedRouteIds.length === 0 ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  {routes.map((item) => {
+                    const selected = selectedRouteIds.includes(item.id);
+                    return (
+                      <Pressable key={item.id} onPress={() => toggleRoute(item.id)} style={styles.modalOptionRow}>
+                        <Text style={[styles.modalOptionText, selected && styles.modalOptionTextActive]}>
+                          {item.maTuyen} - {item.tenTuyen}
+                        </Text>
+                        {selected ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              {modalActiveTab === 'dichVu' && (
+                <View style={styles.modalOptionsGroup}>
+                  <Pressable onPress={() => setSelectedServiceIds([])} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedServiceIds.length === 0 && styles.modalOptionTextActive]}>
+                      Tất cả dịch vụ
+                    </Text>
+                    {selectedServiceIds.length === 0 ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  {services.map((item) => {
+                    const selected = selectedServiceIds.includes(item.id);
+                    return (
+                      <Pressable key={item.id} onPress={() => toggleService(item.id)} style={styles.modalOptionRow}>
+                        <Text style={[styles.modalOptionText, selected && styles.modalOptionTextActive]}>
+                          {item.tenDichVu}
+                        </Text>
+                        {selected ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              {modalActiveTab === 'trangThai' && (
+                <View style={styles.modalOptionsGroup}>
+                  <Pressable onPress={() => setSelectedStatus('ALL')} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedStatus === 'ALL' && styles.modalOptionTextActive]}>
+                      Tất cả trạng thái
+                    </Text>
+                    {selectedStatus === 'ALL' ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  <Pressable onPress={() => setSelectedStatus('UNPAID')} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedStatus === 'UNPAID' && styles.modalOptionTextActive]}>
+                      ⏳ Chưa thu tiền
+                    </Text>
+                    {selectedStatus === 'UNPAID' ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  <Pressable onPress={() => setSelectedStatus('PAID')} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedStatus === 'PAID' && styles.modalOptionTextActive]}>
+                      💰 Đã thu (Chưa xuất HĐ)
+                    </Text>
+                    {selectedStatus === 'PAID' ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                  <Pressable onPress={() => setSelectedStatus('PUBLISHED')} style={styles.modalOptionRow}>
+                    <Text style={[styles.modalOptionText, selectedStatus === 'PUBLISHED' && styles.modalOptionTextActive]}>
+                      🧾 Đã xuất hóa đơn
+                    </Text>
+                    {selectedStatus === 'PUBLISHED' ? <Text style={styles.modalOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalFooter}>
+              <Pressable
+                onPress={() => {
+                  setSelectedKyHoaDons([]);
+                  setSelectedRouteIds([]);
+                  setSelectedServiceIds([]);
+                  setSelectedStatus('ALL');
+                }}
+                style={styles.modalResetBtn}>
+                <Text style={styles.modalResetText}>Đặt lại</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setFilterModalVisible(false);
+                  void runSearch();
+                }}
+                style={styles.modalApplyBtn}>
+                <Text style={styles.modalApplyText}>Áp dụng ({totalItems} hộ)</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1787,10 +1913,326 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0d8a6a',
   },
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  compactFilterCard: {
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d5e6e0',
+    padding: 10,
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 8,
+    shadowColor: '#0b2e25',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  searchBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f6faf8',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cde0da',
+    paddingHorizontal: 10,
+    height: 42,
+    gap: 8,
+  },
+  searchIcon: {
+    fontSize: 15,
+  },
+  compactSearchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 13,
+    color: '#16352d',
+    paddingVertical: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  clearSearchText: {
+    color: '#8aa69b',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  searchSubmitBtn: {
+    backgroundColor: '#0d8a6a',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  searchSubmitText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterPillsScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  filterPillMain: {
+    borderRadius: 20,
+    backgroundColor: '#0d8a6a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillMainText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterPill: {
+    borderRadius: 20,
+    backgroundColor: '#edf6f2',
+    borderWidth: 1,
+    borderColor: '#cbe4db',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillText: {
+    color: '#2a5448',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterPillActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#86efac',
+  },
+  filterPillActiveText: {
+    color: '#166534',
+    fontWeight: '800',
+  },
+  filterPillClear: {
+    borderRadius: 20,
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillClearText: {
+    color: '#991b1b',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  countBadge: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0d8a6a',
+    backgroundColor: '#e6f4ea',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#b7e4cf',
+  },
+  codeTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  householdCodeTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0d8a6a',
+    backgroundColor: '#e6f4ea',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  householdPhoneText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  householdInfoBadge: {
+    fontSize: 12,
+    color: '#334155',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexShrink: 1,
+  },
+  pricePeriodBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  householdPeriodText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  householdPriceText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0d8a6a',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdropPress: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    maxHeight: '80%',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  modalSubTitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  modalTabsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  modalTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  modalTabActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  modalTabText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  modalTabTextActive: {
+    color: '#0d8a6a',
+    fontWeight: '800',
+  },
+  modalBody: {
+    maxHeight: 280,
+  },
+  modalOptionsGroup: {
+    gap: 2,
+  },
+  modalOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalOptionText: {
+    fontSize: 14,
+    color: '#334155',
+    fontWeight: '500',
+  },
+  modalOptionTextActive: {
+    color: '#0d8a6a',
+    fontWeight: '800',
+  },
+  modalOptionCheck: {
+    fontSize: 15,
+    color: '#0d8a6a',
+    fontWeight: '800',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  modalResetBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalResetText: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  modalApplyBtn: {
+    flex: 2,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#0d8a6a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalApplyText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
   flatListHeader: {
     paddingBottom: 8,
   },
   statusPublished: {
-    backgroundColor: '#e1f5fe',
+    backgroundColor: '#e6f4ea',
   },
 });

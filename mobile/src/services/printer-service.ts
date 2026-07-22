@@ -19,6 +19,7 @@ export interface ReceiptInvoiceData {
   tongTien: string | number;
   thue: string | number;
   paymentDate: string | null;
+  invoicePublishStatus?: string | null;
   invoiceSerial?: string | null;
   invoiceFkey?: string | null;
   collectedByName?: string | null;
@@ -40,6 +41,7 @@ export interface ReceiptDataPayload {
   companyAccountNumber: string;
   portalUrl: string;
   qrThanhToan?: string;
+  vietQrPayload?: string;
   generatedAt: string;
   invoices: ReceiptInvoiceData[];
 }
@@ -379,14 +381,21 @@ class PrinterService {
     const companyPhone = payload.companyPhone || '0269.xxxxxxx';
     const companyAccount = payload.companyAccountNumber || 'Chưa cấu hình STK';
     const total = Number(invoice.tongTien) + Number(invoice.thue);
-    const invoiceNo = invoice.invoiceSerial ? `PT${invoice.invoiceSerial}` : `PT${String(invoice.id).padStart(6, '0')}`;
+    const isInvoicePublished =
+      invoice.invoicePublishStatus === 'SUCCESS' ||
+      Boolean(invoice.invoiceSerial) ||
+      Boolean(invoice.invoiceFkey);
+
+    const invoiceSerialStr = invoice.invoiceSerial ? String(invoice.invoiceSerial) : '---';
+    const invoiceFkeyStr = invoice.invoiceFkey ? String(invoice.invoiceFkey) : '---';
     const dateFormatted = formatDate(invoice.paymentDate);
 
-    const qrUrl = payload.qrThanhToan 
-      ? (payload.qrThanhToan.startsWith('http') ? payload.qrThanhToan : `${API_BASE_URL}${payload.qrThanhToan}`)
-      : (invoice.invoiceFkey 
-          ? `${payload.portalUrl}/tim-kiem?fkey=${invoice.invoiceFkey}`
-          : payload.portalUrl || 'http://ankhe.vnptportal.vn');
+    const portalUrlClean = payload.portalUrl ? payload.portalUrl.replace(/^https?:\/\//, '') : 'ankhe.vnptportal.vn';
+    const qrUrl = payload.vietQrPayload || (
+      payload.qrThanhToan && (payload.qrThanhToan.startsWith('http') || payload.qrThanhToan.startsWith('000201'))
+        ? payload.qrThanhToan
+        : (payload.companyAccountNumber ? `https://img.vietqr.io/image/VietinBank-${payload.companyAccountNumber.replace(/[^a-zA-Z0-9]/g, '')}-compact2.png` : payload.portalUrl || 'http://ankhe.vnptportal.vn')
+    );
 
     if (isNative) {
       const topLines: string[] = [];
@@ -397,27 +406,46 @@ class PrinterService {
       topLines.push(center(`STK: ${companyAccount}`));
       topLines.push(doubleDivider);
       topLines.push('');
-      topLines.push(center('PHIẾU THU'));
-      topLines.push('');
-      topLines.push(rightAlign('So phieu:', invoiceNo));
-      topLines.push(rightAlign('Ngay:', dateFormatted));
+
+      if (isInvoicePublished) {
+        topLines.push(center('HOA DON DIEN TU'));
+        topLines.push(center('(BIEN NHAN THU TIEN)'));
+        topLines.push('');
+        topLines.push(rightAlign('Ngay thu:', dateFormatted));
+      } else {
+        topLines.push(center('PHIẾU THU TIỀN'));
+        topLines.push(center('(TAM TINH - CHUA XUAT HD)'));
+        topLines.push('');
+        topLines.push(rightAlign('So phieu:', `PT${String(invoice.id).padStart(6, '0')}`));
+        topLines.push(rightAlign('Ngay thu:', dateFormatted));
+      }
+
       topLines.push(divider);
+      topLines.push(`Ma ho: ${invoice.household?.maHoDan ?? '---'}`);
       topLines.push(`KH: ${invoice.household?.tenChuHo ?? '---'}`);
       topLines.push(`Dia chi: ${invoice.household?.diaChi ?? '---'}`);
       topLines.push(`Dich vu: ${invoice.household?.serviceCatalog?.tenDichVu ?? 'Thu gom rac sinh hoat'}`);
       topLines.push(`Ky: ${invoice.kyHoaDon}`);
       topLines.push(divider);
+      topLines.push(rightAlign('Tien dich vu:', formatCurrency(invoice.tongTien)));
+      topLines.push(rightAlign('Thue GTGT:', formatCurrency(invoice.thue)));
       topLines.push(rightAlign('THANH TIEN', formatCurrency(total)));
       topLines.push(divider);
       topLines.push(center('QR THANH TOAN'));
-      topLines.push(''); // Add a line break before QR
 
       const bottomLines: string[] = [];
-      bottomLines.push(''); // Add a line break after QR
       bottomLines.push(divider);
+
+      if (isInvoicePublished) {
+        bottomLines.push(center(`Tra cuu hoa don (${invoiceSerialStr})`));
+        bottomLines.push(center(`tai: ${portalUrlClean}`));
+        bottomLines.push(center(`voi ma Fkey: ${invoiceFkeyStr}`));
+        bottomLines.push(divider);
+      }
+
       bottomLines.push(rightAlign('Thu ngan:', invoice.collectedByName ?? 'Nhan vien thu tien'));
       bottomLines.push(doubleDivider);
-      bottomLines.push('\n\n\n'); // Feed tape
+      bottomLines.push('\n\n'); // Tightened feed tape
 
       return {
         topText: removeAccents(topLines.join('\n')),
@@ -434,27 +462,48 @@ class PrinterService {
     lines.push(center(`STK: ${companyAccount}`));
     lines.push(doubleDivider);
     lines.push('');
-    lines.push(center('PHIẾU THU'));
-    lines.push('');
-    lines.push(rightAlign('So phieu:', invoiceNo));
-    lines.push(rightAlign('Ngay:', dateFormatted));
+
+    if (isInvoicePublished) {
+      lines.push(center('HOA DON DIEN TU'));
+      lines.push(center('(BIEN NHAN THU TIEN)'));
+      lines.push('');
+      lines.push(rightAlign('Ngay thu:', dateFormatted));
+    } else {
+      lines.push(center('PHIẾU THU TIỀN'));
+      lines.push(center('(TAM TINH - CHUA XUAT HD)'));
+      lines.push('');
+      lines.push(rightAlign('So phieu:', `PT${String(invoice.id).padStart(6, '0')}`));
+      lines.push(rightAlign('Ngay thu:', dateFormatted));
+    }
+
     lines.push(divider);
+    lines.push(`Ma ho: ${invoice.household?.maHoDan ?? '---'}`);
     lines.push(`KH: ${invoice.household?.tenChuHo ?? '---'}`);
     lines.push(`Dia chi: ${invoice.household?.diaChi ?? '---'}`);
     lines.push(`Dich vu: ${invoice.household?.serviceCatalog?.tenDichVu ?? 'Thu gom rac sinh hoat'}`);
     lines.push(`Ky: ${invoice.kyHoaDon}`);
     lines.push(divider);
+    lines.push(rightAlign('Tien dich vu:', formatCurrency(invoice.tongTien)));
+    lines.push(rightAlign('Thue GTGT:', formatCurrency(invoice.thue)));
     lines.push(rightAlign('THANH TIEN', formatCurrency(total)));
     lines.push(divider);
-    lines.push(center('QR THANH TOAN'));
+    lines.push(center('QR THANH TOÁN'));
     lines.push(center('██████████████'));
     lines.push(center('████  QR  ████'));
     lines.push(center('██████████████'));
     lines.push(center(qrUrl));
     lines.push(divider);
+
+    if (isInvoicePublished) {
+      lines.push(center(`Tra cứu hóa đơn (${invoiceSerialStr})`));
+      lines.push(center(`tại: ${portalUrlClean}`));
+      lines.push(center(`với mã Fkey: ${invoiceFkeyStr}`));
+      lines.push(divider);
+    }
+
     lines.push(rightAlign('Thu ngan:', invoice.collectedByName ?? 'Nhan vien thu tien'));
     lines.push(doubleDivider);
-    lines.push('\n\n\n'); // Feed tape
+    lines.push('\n\n'); // Tightened feed tape
 
     return lines.join('\n');
   }

@@ -60,6 +60,10 @@ interface ReceiptPayloadInvoice {
   tongTien: number;
   thue: number;
   paymentDate: string | null;
+  invoicePublishStatus?: string | null;
+  invoiceSerial?: string | null;
+  invoiceFkey?: string | null;
+  collectedByName?: string | null;
   household: {
     maHoDan: string;
     tenChuHo: string;
@@ -68,9 +72,16 @@ interface ReceiptPayloadInvoice {
 }
 
 interface ReceiptPayloadResponse {
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyAccountNumber?: string;
+  portalUrl?: string;
   generatedAt: string;
   totalInvoices: number;
   totalAmount: number;
+  qrThanhToan?: string;
+  vietQrPayload?: string;
   invoices: ReceiptPayloadInvoice[];
 }
 
@@ -102,50 +113,99 @@ function toNumber(value: unknown) {
   return Number(value ?? 0);
 }
 
-function buildReceiptHtml(invoice: ReceiptPayloadInvoice, qrThanhToan?: string) {
+function buildReceiptHtml(invoice: ReceiptPayloadInvoice, payload?: ReceiptPayloadResponse) {
   const total = Number(invoice.tongTien) + Number(invoice.thue);
   const generatedAt = new Date().toLocaleString('vi-VN');
+  const isInvoicePublished =
+    invoice.invoicePublishStatus === 'SUCCESS' ||
+    Boolean(invoice.invoiceSerial) ||
+    Boolean(invoice.invoiceFkey);
 
-  const qrImageUrl = qrThanhToan
-    ? (qrThanhToan.startsWith('http') ? qrThanhToan : `${API_BASE_URL}${qrThanhToan}`)
-    : '';
+  const portalUrl = payload?.portalUrl || 'http://ankhe.vnptportal.vn';
+  const qrThanhToan = payload?.qrThanhToan;
+  const qrImageUrl = (qrThanhToan && qrThanhToan.startsWith('http'))
+    ? qrThanhToan
+    : (payload?.companyAccountNumber
+        ? `https://img.vietqr.io/image/VietinBank-${payload.companyAccountNumber.replace(/[^a-zA-Z0-9]/g, '')}-compact2.png?amount=${Math.round(total)}&addInfo=${encodeURIComponent(`TT TIEN RAC ${invoice.household?.maHoDan || ''}`.trim())}`
+        : (qrThanhToan ? (qrThanhToan.startsWith('/') ? `${API_BASE_URL}${qrThanhToan}` : qrThanhToan) : ''));
 
   return `<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8" />
-    <title>Phiếu thu ${invoice.kyHoaDon}</title>
+    <title>${isInvoicePublished ? 'Hóa đơn điện tử' : 'Phiếu thu'} ${invoice.kyHoaDon}</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 24px; color: #1e2f2a; }
-      .card { border: 1px solid #cfe1db; border-radius: 12px; padding: 16px; max-width: 720px; }
-      .title { font-size: 24px; margin: 0 0 8px; color: #0d8a6a; }
-      .sub { margin: 0 0 16px; color: #4b7167; }
-      .row { display: flex; justify-content: space-between; margin: 8px 0; border-bottom: 1px dashed #d7e9e2; padding-bottom: 8px; }
-      .strong { font-weight: 700; }
-      .qr-container { text-align: center; margin-top: 24px; border-top: 1px dashed #cfe1db; padding-top: 16px; }
-      .qr-img { width: 180px; height: 180px; object-fit: contain; }
-      .qr-label { font-size: 14px; font-weight: bold; color: #0d8a6a; margin-top: 4px; }
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 12px; color: #1e2f2a; background: #ffffff; }
+      .card { border: 1px solid #cfe1db; border-radius: 12px; padding: 14px; max-width: 580px; margin: 0 auto; background: #ffffff; }
+      .header-box { text-align: center; border-bottom: 1.5px solid #0d8a6a; padding-bottom: 10px; margin-bottom: 12px; }
+      .company-name { font-size: 15px; font-weight: 800; color: #0d8a6a; margin: 0; text-transform: uppercase; }
+      .company-sub { font-size: 11px; color: #4b7167; margin: 2px 0 0; }
+      .title-box { text-align: center; margin: 10px 0; }
+      .title { font-size: 18px; font-weight: 800; margin: 0; color: ${isInvoicePublished ? '#0b4f3f' : '#1e3a8a'}; text-transform: uppercase; }
+      .title-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+      .badge-published { display: inline-block; background: #e6f4ea; color: #137333; font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 12px; border: 1px solid #ceead6; margin-top: 4px; }
+      .badge-receipt { display: inline-block; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 12px; border: 1px solid #bfdbfe; margin-top: 4px; }
+      .invoice-info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+      .invoice-info-box.receipt-box { background: #f8fafc; border-color: #e2e8f0; }
+      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12px; }
+      .info-item { display: flex; flex-direction: column; }
+      .info-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+      .info-val { font-size: 12px; font-weight: 700; color: #0f172a; margin-top: 1px; }
+      .row { display: flex; justify-content: space-between; margin: 5px 0; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; font-size: 12px; }
+      .strong { font-weight: 700; color: #0f2d25; }
+      .total-row { display: flex; justify-content: space-between; margin: 8px 0 4px; padding: 8px 10px; background: #f1f9f6; border-radius: 8px; font-size: 14px; font-weight: 800; color: #0d8a6a; }
+      .qr-container { text-align: center; margin-top: 8px; border-top: 1px dashed #cfe1db; padding-top: 8px; }
+      .qr-img { width: 120px; height: 120px; object-fit: contain; }
+      .qr-label { font-size: 11px; font-weight: 700; color: #0d8a6a; margin-top: 2px; }
+      .invoice-lookup-box { background: #f0fdf4; border: 1px dashed #a7f3d0; border-radius: 8px; padding: 8px 10px; margin-top: 8px; text-align: center; }
+      .invoice-lookup-text { font-size: 11px; color: #1e3a8a; margin: 0; line-height: 1.5; }
+      .lookup-link { color: #0d8a6a; font-weight: 700; text-decoration: underline; }
+      .fkey-code { color: #0d8a6a; font-size: 12px; font-weight: 800; }
+      .footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 6px; border-top: 1px solid #f1f5f9; padding-top: 4px; }
     </style>
   </head>
   <body>
     <div class="card">
-      <h1 class="title">Phiếu thu tiền rác</h1>
-      <p class="sub">In lúc: ${generatedAt}</p>
-      <div class="row"><span>Mã hộ</span><span class="strong">${invoice.household?.maHoDan ?? '---'}</span></div>
+      <div class="header-box">
+        <h2 class="company-name">${payload?.companyName || 'CÔNG TRÌNH ĐÔ THỊ AN KHÊ'}</h2>
+        <p class="company-sub">${payload?.companyAddress ? `ĐC: ${payload.companyAddress}` : ''} ${payload?.companyPhone ? `• ĐT: ${payload.companyPhone}` : ''}</p>
+        ${payload?.companyAccountNumber ? `<p class="company-sub">STK: ${payload.companyAccountNumber}</p>` : ''}
+      </div>
+
+      <div class="title-box">
+        <h1 class="title">${isInvoicePublished ? 'HÓA ĐƠN ĐIỆN TỬ (BIÊN NHẬN)' : 'PHIẾU THU TIỀN RÁC'}</h1>
+        <p class="title-sub">Thời gian in: ${generatedAt}</p>
+      </div>
+
+      <div class="row"><span>Mã hộ dân</span><span class="strong">${invoice.household?.maHoDan ?? '---'}</span></div>
       <div class="row"><span>Chủ hộ</span><span class="strong">${invoice.household?.tenChuHo ?? '---'}</span></div>
       <div class="row"><span>Địa chỉ</span><span class="strong">${invoice.household?.diaChi ?? '---'}</span></div>
-      <div class="row"><span>Kỳ hóa đơn</span><span class="strong">${invoice.kyHoaDon}</span></div>
+      <div class="row"><span>Kỳ thanh toán</span><span class="strong">${invoice.kyHoaDon}</span></div>
       <div class="row"><span>Tiền dịch vụ</span><span class="strong">${formatCurrency(Number(invoice.tongTien))}</span></div>
-      <div class="row"><span>Thuế</span><span class="strong">${formatCurrency(Number(invoice.thue))}</span></div>
-      <div class="row"><span>Tổng cộng</span><span class="strong">${formatCurrency(total)}</span></div>
-      <div class="row"><span>Ngày thu</span><span class="strong">${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleString('vi-VN') : '---'}</span></div>
-      
+      <div class="row"><span>Thuế GTGT</span><span class="strong">${formatCurrency(Number(invoice.thue))}</span></div>
+      <div class="total-row"><span>TỔNG CỘNG THANH TOÁN</span><span>${formatCurrency(total)}</span></div>
+      <div class="row"><span>Ngày thu tiền</span><span class="strong">${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleString('vi-VN') : '---'}</span></div>
+
       ${qrImageUrl ? `
       <div class="qr-container">
-        <p class="qr-label">QR THANH TOÁN</p>
+        <p class="qr-label">MÃ QR THANH TOÁN</p>
         <img class="qr-img" src="${qrImageUrl}" alt="Mã QR thanh toán" />
       </div>
       ` : ''}
+
+      ${isInvoicePublished ? `
+      <div class="invoice-lookup-box">
+        <p class="invoice-lookup-text">
+          Tra cứu hóa đơn <strong>(${invoice.invoiceSerial || '---'})</strong> tại: <br/>
+          <a href="${portalUrl}" target="_blank" class="lookup-link">${portalUrl}</a> <br/>
+          với mã FKey: <strong class="fkey-code">${invoice.invoiceFkey || '---'}</strong>
+        </p>
+      </div>
+      ` : ''}
+
+      <div class="footer">
+        <p>Cảm ơn quý khách đã thanh toán dịch vụ thu gom rác sinh hoạt!</p>
+      </div>
     </div>
     <script>
       window.onload = function () { window.print(); };
@@ -449,7 +509,7 @@ export default function HouseholdDetailRoute() {
           return;
         }
 
-        popup.document.write(buildReceiptHtml(invoice, response.data?.qrThanhToan));
+        popup.document.write(buildReceiptHtml(invoice, response.data));
         popup.document.close();
       } else {
         await printerService.printReceipt(response.data);

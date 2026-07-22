@@ -4,6 +4,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
+import { buildVietQRImageUrl, generateVietQREMVCo } from '../common/vietqr.helper';
 
 type PublishSettings = {
   publishServiceUrl: string;
@@ -691,6 +692,9 @@ export class InvoicesService {
             'Địa chỉ',
             'Số điện thoại',
             'Số tài khoản ngân hàng',
+            'Mã ngân hàng',
+            'Tên ngân hàng / Mã ngân hàng',
+            'Tên chủ tài khoản',
             'PORTAL_SERVICE_ADDRESS_ID',
             'QR thanh toán',
           ],
@@ -699,6 +703,37 @@ export class InvoicesService {
     });
 
     const paramsMap = new Map(systemParams.map((item) => [item.tenThamSo, item.giaTri?.trim() ?? '']));
+    const companyAccountNumber = paramsMap.get('Số tài khoản ngân hàng') || '';
+    const bankCode = paramsMap.get('Mã ngân hàng') || paramsMap.get('Tên ngân hàng / Mã ngân hàng') || '970415';
+    const accountName = paramsMap.get('Tên chủ tài khoản') || paramsMap.get('Tên đơn vị') || '';
+    const firstInvoice = invoices[0];
+    const householdCode = firstInvoice?.household?.maHoDan || '';
+    const memo = `TT TIEN RAC ${householdCode}`.trim();
+
+    let qrThanhToan = paramsMap.get('QR thanh toán') || '';
+    let vietQrPayload = '';
+
+    if (companyAccountNumber) {
+      vietQrPayload = generateVietQREMVCo({
+        bankBin: bankCode,
+        accountNo: companyAccountNumber,
+        amount: totalAmount,
+        memo,
+      });
+
+      // If qrThanhToan is not a custom external URL or custom payload string, generate VietQR Quick Link
+      if (!qrThanhToan || qrThanhToan.startsWith('/') || !qrThanhToan.startsWith('http')) {
+        qrThanhToan = buildVietQRImageUrl({
+          bankBin: bankCode,
+          accountNo: companyAccountNumber,
+          accountName,
+          amount: totalAmount,
+          memo,
+        });
+      }
+    } else if (qrThanhToan && qrThanhToan.startsWith('000201')) {
+      vietQrPayload = qrThanhToan;
+    }
 
     return {
       generatedAt: new Date().toISOString(),
@@ -707,9 +742,10 @@ export class InvoicesService {
       companyName: paramsMap.get('Tên đơn vị') || 'CÔNG TRÌNH ĐÔ THỊ AN KHÊ',
       companyAddress: paramsMap.get('Địa chỉ') || '',
       companyPhone: paramsMap.get('Số điện thoại') || '',
-      companyAccountNumber: paramsMap.get('Số tài khoản ngân hàng') || '',
+      companyAccountNumber,
       portalUrl: paramsMap.get('PORTAL_SERVICE_ADDRESS_ID') || '',
-      qrThanhToan: paramsMap.get('QR thanh toán') || '',
+      qrThanhToan,
+      vietQrPayload,
       invoices,
     };
   }

@@ -156,15 +156,34 @@ export class InvoicesController {
   @RequirePermissions(APP_PERMISSIONS.INVOICES_REPORT)
   getDetailReportByPeriod(
     @Query('kyHoaDon') kyHoaDon?: string,
+    @Query('kyHoaDons') kyHoaDons?: string,
     @Query('collectorId') collectorId?: string,
     @Query('routeId') routeId?: string,
+    @Query('routeIds') routeIds?: string,
+    @Query('trangThaiThanhToan') trangThaiThanhToan?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
+    const rawKy = (kyHoaDons || kyHoaDon || '').trim();
+    const parsedKyList = rawKy
+      ? rawKy.split(',').map((item) => item.trim()).filter(Boolean)
+      : [];
+
+    const rawRoutes = (routeIds || routeId || '').trim();
+    const parsedRouteList = rawRoutes
+      ? rawRoutes
+          .split(',')
+          .map((item) => Number(item.trim()))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      : [];
+
     return this.invoicesService.getDetailReportByPeriod({
-      kyHoaDon,
+      kyHoaDon: kyHoaDon?.trim(),
+      kyHoaDons: parsedKyList,
       collectorId: collectorId ? Number(collectorId) : undefined,
       routeId: routeId ? Number(routeId) : undefined,
+      routeIds: parsedRouteList,
+      trangThaiThanhToan: (trangThaiThanhToan?.trim() as any) || undefined,
       page: Number(page),
       limit: Number(limit),
     });

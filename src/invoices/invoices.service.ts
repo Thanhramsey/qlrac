@@ -796,15 +796,33 @@ export class InvoicesService implements OnModuleInit {
 
   async getDetailReportByPeriod(params: {
     kyHoaDon?: string;
+    kyHoaDons?: string[];
     collectorId?: number;
     routeId?: number;
+    routeIds?: number[];
+    trangThaiThanhToan?: InvoicePaymentStatus | 'ALL';
     page?: number;
     limit?: number;
   }) {
-    const kyHoaDon = params.kyHoaDon?.trim();
-    if (!kyHoaDon) {
+    const kyList = params.kyHoaDons && params.kyHoaDons.length > 0
+      ? params.kyHoaDons.map((s) => s.trim()).filter(Boolean)
+      : params.kyHoaDon?.trim()
+        ? [params.kyHoaDon.trim()]
+        : [];
+
+    if (kyList.length === 0) {
       throw new BadRequestException('Vui lòng chọn kỳ hóa đơn');
     }
+
+    const routeList = params.routeIds && params.routeIds.length > 0
+      ? params.routeIds
+      : Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
+        ? [Number(params.routeId)]
+        : undefined;
+
+    const statusFilter = params.trangThaiThanhToan && params.trangThaiThanhToan !== 'ALL'
+      ? (params.trangThaiThanhToan as InvoicePaymentStatus)
+      : undefined;
 
     const normalizedPage = Number.isFinite(params.page) && (params.page ?? 0) > 0 ? Number(params.page) : 1;
     const normalizedLimit = Number.isFinite(params.limit)
@@ -812,26 +830,40 @@ export class InvoicesService implements OnModuleInit {
       : 20;
     const skip = (normalizedPage - 1) * normalizedLimit;
 
-    const paidStatus = InvoicePaymentStatus.PAID;
     const where: Prisma.InvoiceWhereInput = {
       isActive: true,
-      kyHoaDon,
-      trangThaiThanhToan: paidStatus,
+      kyHoaDon: { in: kyList },
+      ...(statusFilter
+        ? { trangThaiThanhToan: statusFilter }
+        : { trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] } }),
       household: {
-        tuyenThuRacId:
-          Number.isInteger(params.routeId) && (params.routeId ?? 0) > 0
-            ? Number(params.routeId)
-            : undefined,
-        tuyenThuRac: {
-          staffId:
-            Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
-              ? Number(params.collectorId)
-              : undefined,
-        },
+        ...(routeList ? { tuyenThuRacId: { in: routeList } } : {}),
+        ...(Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
+          ? {
+              tuyenThuRac: {
+                staffId: Number(params.collectorId),
+              },
+            }
+          : {}),
       },
     };
 
-    const [rows, totalRows] = await this.prisma.$transaction([
+    const summaryWhere: Prisma.InvoiceWhereInput = {
+      isActive: true,
+      kyHoaDon: { in: kyList },
+      household: {
+        ...(routeList ? { tuyenThuRacId: { in: routeList } } : {}),
+        ...(Number.isInteger(params.collectorId) && (params.collectorId ?? 0) > 0
+          ? {
+              tuyenThuRac: {
+                staffId: Number(params.collectorId),
+              },
+            }
+          : {}),
+      },
+    };
+
+    const [rows, totalRows, allInvoicesForSummary] = await this.prisma.$transaction([
       this.prisma.invoice.findMany({
         where,
         skip,
@@ -863,6 +895,18 @@ export class InvoicesService implements OnModuleInit {
         },
       }),
       this.prisma.invoice.count({ where }),
+      this.prisma.invoice.findMany({
+        where: summaryWhere,
+        select: {
+          id: true,
+          tongTien: true,
+          thue: true,
+          trangThaiThanhToan: true,
+          invoicePublishStatus: true,
+          invoiceSerial: true,
+          invoiceFkey: true,
+        },
+      }),
     ]);
 
     const mappedRows = rows.map((item) => {
@@ -880,27 +924,64 @@ export class InvoicesService implements OnModuleInit {
           '---',
         invoiceSerial: item.invoiceSerial,
         invoiceFkey: item.invoiceFkey,
-        daPhatHanh: item.invoicePublishStatus === 'SUCCESS',
+        daPhatHanh:
+          item.invoicePublishStatus === 'SUCCESS' ||
+          Boolean(item.invoiceSerial) ||
+          Boolean(item.invoiceFkey),
         tongTien: Number(item.tongTien),
         thue: Number(item.thue),
         tongCong: totalAmount,
         paymentDate: item.paymentDate,
+        trangThaiThanhToan: item.trangThaiThanhToan,
       };
     });
 
-    const sum = mappedRows.reduce(
+    const summary = allInvoicesForSummary.reduce(
       (acc, item) => {
-        acc.tongTien += item.tongTien;
-        acc.thue += item.thue;
-        acc.tongCong += item.tongCong;
-        if (item.daPhatHanh) {
+        const itemTong = Number(item.tongTien) || 0;
+        const itemThue = Number(item.thue) || 0;
+        const itemCong = itemTong + itemThue;
+
+        acc.tongTien += itemTong;
+        acc.thue += itemThue;
+        acc.tongCong += itemCong;
+
+        const isCollected =
+          item.trangThaiThanhToan === InvoicePaymentStatus.PAID ||
+          item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED;
+
+        if (isCollected) {
+          acc.soHoDaThu += 1;
+          acc.tongTienDaThu += itemTong;
+          acc.thueDaThu += itemThue;
+          acc.tongCongDaThu += itemCong;
+        } else {
+          acc.soHoChuaThu += 1;
+          acc.tongTienChuaThu += itemTong;
+          acc.thueChuaThu += itemThue;
+          acc.tongCongChuaThu += itemCong;
+        }
+
+        if (
+          item.invoicePublishStatus === 'SUCCESS' ||
+          Boolean(item.invoiceSerial) ||
+          Boolean(item.invoiceFkey)
+        ) {
           acc.soHoaDonDaPhatHanh += 1;
         }
+
         return acc;
       },
       {
-        soHoDaThu: mappedRows.length,
+        soHoDaThu: 0,
+        soHoChuaThu: 0,
         soHoaDonDaPhatHanh: 0,
+        tongTienDaThu: 0,
+        thueDaThu: 0,
+        tongCongDaThu: 0,
+        tongTienChuaThu: 0,
+        thueChuaThu: 0,
+        tongCongChuaThu: 0,
         tongTien: 0,
         thue: 0,
         tongCong: 0,
@@ -909,7 +990,7 @@ export class InvoicesService implements OnModuleInit {
 
     return {
       data: mappedRows,
-      summary: sum,
+      summary,
       pagination: {
         page: normalizedPage,
         limit: normalizedLimit,
@@ -1124,7 +1205,7 @@ export class InvoicesService implements OnModuleInit {
 
     const where: Prisma.InvoiceWhereInput = {
       isActive: true,
-      trangThaiThanhToan: InvoicePaymentStatus.PAID,
+      trangThaiThanhToan: { in: [InvoicePaymentStatus.PAID, InvoicePaymentStatus.PUBLISHED] },
       paymentDate: {
         gte: from,
         lte: to,
@@ -1143,7 +1224,7 @@ export class InvoicesService implements OnModuleInit {
       },
     };
 
-    const [rows, totalRows] = await this.prisma.$transaction([
+    const [rows, totalRows, summaryRows] = await this.prisma.$transaction([
       this.prisma.invoice.findMany({
         where,
         skip,
@@ -1175,6 +1256,18 @@ export class InvoicesService implements OnModuleInit {
         },
       }),
       this.prisma.invoice.count({ where }),
+      this.prisma.invoice.findMany({
+        where,
+        select: {
+          id: true,
+          tongTien: true,
+          thue: true,
+          paymentDate: true,
+          invoicePublishStatus: true,
+          invoiceSerial: true,
+          invoiceFkey: true,
+        },
+      }),
     ]);
 
     const mappedRows = rows.map((item) => {
@@ -1195,7 +1288,10 @@ export class InvoicesService implements OnModuleInit {
           '---',
         invoiceSerial: item.invoiceSerial,
         invoiceFkey: item.invoiceFkey,
-        daPhatHanh: item.invoicePublishStatus === 'SUCCESS',
+        daPhatHanh:
+          item.invoicePublishStatus === 'SUCCESS' ||
+          Boolean(item.invoiceSerial) ||
+          Boolean(item.invoiceFkey),
         tongTien: Number(item.tongTien),
         thue: Number(item.thue),
         tongCong: totalAmount,
@@ -1220,18 +1316,26 @@ export class InvoicesService implements OnModuleInit {
         tongTien: val.tongCong,
       }));
 
-    const sum = mappedRows.reduce(
+    const sum = summaryRows.reduce(
       (acc, item) => {
-        acc.tongTien += item.tongTien;
-        acc.thue += item.thue;
-        acc.tongCong += item.tongCong;
-        if (item.daPhatHanh) {
+        const itemTong = Number(item.tongTien) || 0;
+        const itemThue = Number(item.thue) || 0;
+        const itemCong = itemTong + itemThue;
+
+        acc.tongTien += itemTong;
+        acc.thue += itemThue;
+        acc.tongCong += itemCong;
+        if (
+          item.invoicePublishStatus === 'SUCCESS' ||
+          Boolean(item.invoiceSerial) ||
+          Boolean(item.invoiceFkey)
+        ) {
           acc.soHoaDonDaPhatHanh += 1;
         }
         return acc;
       },
       {
-        soHoDaThu: mappedRows.length,
+        soHoDaThu: summaryRows.length,
         soHoaDonDaPhatHanh: 0,
         tongTien: 0,
         thue: 0,
@@ -1375,9 +1479,13 @@ export class InvoicesService implements OnModuleInit {
       }
 
       const group = groupMap.get(key)!;
+      const isCollected =
+        item.trangThaiThanhToan === InvoicePaymentStatus.PAID ||
+        item.trangThaiThanhToan === InvoicePaymentStatus.PUBLISHED;
+
       if (item.householdId) {
         group.soHo.add(item.householdId);
-        if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+        if (isCollected) {
           group.soHoDaThu.add(item.householdId);
         } else {
           group.soHoChuaThu.add(item.householdId);
@@ -1388,7 +1496,7 @@ export class InvoicesService implements OnModuleInit {
       group.tongThue += Number(item.thue);
       group.tongCong += totalAmount;
 
-      if (item.trangThaiThanhToan === InvoicePaymentStatus.PAID) {
+      if (isCollected) {
         group.daThuTien += Number(item.tongTien);
         group.daThuThue += Number(item.thue);
         group.daThuCong += totalAmount;

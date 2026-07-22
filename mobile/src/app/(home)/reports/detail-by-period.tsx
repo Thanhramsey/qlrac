@@ -92,12 +92,13 @@ interface InvoiceDetailReportResponse {
   };
 }
 
-function formatCurrency(value: number) {
+function formatCurrency(value?: number | null) {
+  const num = typeof value === 'number' && !Number.isNaN(value) ? value : 0;
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(num);
 }
 
 function formatDateTime(value?: string | null) {
@@ -152,7 +153,7 @@ export default function DetailByPeriodReportRoute() {
     visible: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const showConfirm = (config: {
@@ -286,7 +287,9 @@ export default function DetailByPeriodReportRoute() {
     try {
       const response = await httpClient.get<InvoiceDetailReportResponse>('/invoices/reports/detail-by-period', {
         params: {
+          kyHoaDon: selectedKyHoaDons[0] || undefined,
           kyHoaDons: selectedKyHoaDons.join(','),
+          routeId: selectedRouteIds[0] || undefined,
           routeIds: selectedRouteIds.length > 0 ? selectedRouteIds.join(',') : undefined,
           collectorId: selectedCollectorId || undefined,
           trangThaiThanhToan: selectedStatus,
@@ -434,9 +437,25 @@ export default function DetailByPeriodReportRoute() {
     </View>
   );
 
-  // Render filters and stats header component of FlatList
   const renderHeader = () => (
     <View style={styles.headerContent}>
+      {/* Top Report Tab Switcher */}
+      <View style={styles.reportNavTabs}>
+        <Pressable style={[styles.navTabBtn, styles.navTabBtnActive]}>
+          <Text style={[styles.navTabBtnText, styles.navTabBtnTextActive]}>📅 Theo kỳ</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.replace('/reports/detail-by-date' as never)}
+          style={styles.navTabBtn}>
+          <Text style={styles.navTabBtnText}>📆 Theo ngày</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.replace('/reports/revenue-summary' as never)}
+          style={styles.navTabBtn}>
+          <Text style={styles.navTabBtnText}>📊 Doanh số</Text>
+        </Pressable>
+      </View>
+
       {/* Filters Form */}
       <View style={styles.filterCard}>
         <Pressable onPress={() => setFilterCollapsed(!filterCollapsed)} style={styles.filterHeaderPressable}>
@@ -447,150 +466,150 @@ export default function DetailByPeriodReportRoute() {
         {!filterCollapsed && (
           <>
             <View style={styles.filterGrid}>
-          {/* Billing Period Multi-Select Dropdown */}
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Kỳ hóa đơn * (Chọn nhiều)</Text>
-            <Pressable onPress={() => toggleFilter('period')} style={styles.selectShell}>
-              <View style={styles.selectIconWrap}>
-                <Text style={styles.selectIcon}>{expandedFilter === 'period' ? '▴' : '▾'}</Text>
+              {/* Billing Period Multi-Select Dropdown */}
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Kỳ hóa đơn * (Chọn nhiều)</Text>
+                <Pressable onPress={() => toggleFilter('period')} style={styles.selectShell}>
+                  <View style={styles.selectIconWrap}>
+                    <Text style={styles.selectIcon}>{expandedFilter === 'period' ? '▴' : '▾'}</Text>
+                  </View>
+                  <Text style={styles.selectValueText} numberOfLines={1}>
+                    {selectedKyLabel}
+                  </Text>
+                </Pressable>
+                {expandedFilter === 'period' && (
+                  <View style={styles.dropdownPanel}>
+                    {billingPeriods.map((item) => {
+                      const isSelected = selectedKyHoaDons.includes(item.maKy);
+                      return (
+                        <Pressable key={item.id} onPress={() => toggleKy(item.maKy)} style={styles.dropdownOption}>
+                          <Text style={[styles.dropdownOptionText, isSelected && styles.dropdownOptionTextActive]}>
+                            {item.tenKy}
+                          </Text>
+                          {isSelected && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
-              <Text style={styles.selectValueText} numberOfLines={1}>
-                {selectedKyLabel}
-              </Text>
-            </Pressable>
-            {expandedFilter === 'period' && (
-              <View style={styles.dropdownPanel}>
-                {billingPeriods.map((item) => {
-                  const isSelected = selectedKyHoaDons.includes(item.maKy);
-                  return (
-                    <Pressable key={item.id} onPress={() => toggleKy(item.maKy)} style={styles.dropdownOption}>
-                      <Text style={[styles.dropdownOptionText, isSelected && styles.dropdownOptionTextActive]}>
-                        {item.tenKy}
+
+              {/* Route Multi-Select Dropdown */}
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Tuyến thu (Chọn nhiều)</Text>
+                <Pressable onPress={() => toggleFilter('route')} style={styles.selectShell}>
+                  <View style={styles.selectIconWrap}>
+                    <Text style={styles.selectIcon}>{expandedFilter === 'route' ? '▴' : '▾'}</Text>
+                  </View>
+                  <Text style={styles.selectValueText} numberOfLines={1}>
+                    {selectedRouteLabel}
+                  </Text>
+                </Pressable>
+                {expandedFilter === 'route' && (
+                  <View style={styles.dropdownPanel}>
+                    <Pressable onPress={toggleAllRoutes} style={styles.dropdownOption}>
+                      <Text style={[styles.dropdownOptionText, selectedRouteIds.length === 0 && styles.dropdownOptionTextActive]}>
+                        Tất cả tuyến
                       </Text>
-                      {isSelected && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                      {selectedRouteIds.length === 0 && <Text style={styles.dropdownOptionCheck}>✓</Text>}
                     </Pressable>
-                  );
-                })}
+                    {routes.map((item) => {
+                      const isSelected = selectedRouteIds.includes(item.id);
+                      return (
+                        <Pressable key={item.id} onPress={() => toggleRoute(item.id)} style={styles.dropdownOption}>
+                          <Text style={[styles.dropdownOptionText, isSelected && styles.dropdownOptionTextActive]}>
+                            {item.maTuyen} - {item.tenTuyen}
+                          </Text>
+                          {isSelected && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
-            )}
-          </View>
 
-          {/* Route Multi-Select Dropdown */}
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Tuyến thu (Chọn nhiều)</Text>
-            <Pressable onPress={() => toggleFilter('route')} style={styles.selectShell}>
-              <View style={styles.selectIconWrap}>
-                <Text style={styles.selectIcon}>{expandedFilter === 'route' ? '▴' : '▾'}</Text>
-              </View>
-              <Text style={styles.selectValueText} numberOfLines={1}>
-                {selectedRouteLabel}
-              </Text>
-            </Pressable>
-            {expandedFilter === 'route' && (
-              <View style={styles.dropdownPanel}>
-                <Pressable onPress={toggleAllRoutes} style={styles.dropdownOption}>
-                  <Text style={[styles.dropdownOptionText, selectedRouteIds.length === 0 && styles.dropdownOptionTextActive]}>
-                    Tất cả tuyến
-                  </Text>
-                  {selectedRouteIds.length === 0 && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+              {/* Payment Status Dropdown */}
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Trạng thái thanh toán</Text>
+                <Pressable onPress={() => toggleFilter('status')} style={styles.selectShell}>
+                  <View style={styles.selectIconWrap}>
+                    <Text style={styles.selectIcon}>{expandedFilter === 'status' ? '▴' : '▾'}</Text>
+                  </View>
+                  <Text style={styles.selectValueText}>{selectedStatusLabel}</Text>
                 </Pressable>
-                {routes.map((item) => {
-                  const isSelected = selectedRouteIds.includes(item.id);
-                  return (
-                    <Pressable key={item.id} onPress={() => toggleRoute(item.id)} style={styles.dropdownOption}>
-                      <Text style={[styles.dropdownOptionText, isSelected && styles.dropdownOptionTextActive]}>
-                        {item.maTuyen} - {item.tenTuyen}
+                {expandedFilter === 'status' && (
+                  <View style={styles.dropdownPanel}>
+                    <Pressable onPress={() => selectStatus('PAID')} style={styles.dropdownOption}>
+                      <Text style={[styles.dropdownOptionText, selectedStatus === 'PAID' && styles.dropdownOptionTextActive]}>
+                        Đã thu (chưa xuất HĐ)
                       </Text>
-                      {isSelected && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                      {selectedStatus === 'PAID' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
                     </Pressable>
-                  );
-                })}
+                    <Pressable onPress={() => selectStatus('PUBLISHED')} style={styles.dropdownOption}>
+                      <Text style={[styles.dropdownOptionText, selectedStatus === 'PUBLISHED' && styles.dropdownOptionTextActive]}>
+                        Đã xuất hóa đơn
+                      </Text>
+                      {selectedStatus === 'PUBLISHED' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                    </Pressable>
+                    <Pressable onPress={() => selectStatus('UNPAID')} style={styles.dropdownOption}>
+                      <Text style={[styles.dropdownOptionText, selectedStatus === 'UNPAID' && styles.dropdownOptionTextActive]}>
+                        Chưa thu
+                      </Text>
+                      {selectedStatus === 'UNPAID' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                    </Pressable>
+                    <Pressable onPress={() => selectStatus('ALL')} style={styles.dropdownOption}>
+                      <Text style={[styles.dropdownOptionText, selectedStatus === 'ALL' && styles.dropdownOptionTextActive]}>
+                        Tất cả
+                      </Text>
+                      {selectedStatus === 'ALL' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                    </Pressable>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
 
-          {/* Payment Status Dropdown */}
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Trạng thái thanh toán</Text>
-            <Pressable onPress={() => toggleFilter('status')} style={styles.selectShell}>
-              <View style={styles.selectIconWrap}>
-                <Text style={styles.selectIcon}>{expandedFilter === 'status' ? '▴' : '▾'}</Text>
-              </View>
-              <Text style={styles.selectValueText}>{selectedStatusLabel}</Text>
-            </Pressable>
-            {expandedFilter === 'status' && (
-              <View style={styles.dropdownPanel}>
-                <Pressable onPress={() => selectStatus('PAID')} style={styles.dropdownOption}>
-                  <Text style={[styles.dropdownOptionText, selectedStatus === 'PAID' && styles.dropdownOptionTextActive]}>
-                    Đã thu (chưa xuất HĐ)
-                  </Text>
-                  {selectedStatus === 'PAID' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
-                </Pressable>
-                <Pressable onPress={() => selectStatus('PUBLISHED')} style={styles.dropdownOption}>
-                  <Text style={[styles.dropdownOptionText, selectedStatus === 'PUBLISHED' && styles.dropdownOptionTextActive]}>
-                    Đã xuất hóa đơn
-                  </Text>
-                  {selectedStatus === 'PUBLISHED' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
-                </Pressable>
-                <Pressable onPress={() => selectStatus('UNPAID')} style={styles.dropdownOption}>
-                  <Text style={[styles.dropdownOptionText, selectedStatus === 'UNPAID' && styles.dropdownOptionTextActive]}>
-                    Chưa thu
-                  </Text>
-                  {selectedStatus === 'UNPAID' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
-                </Pressable>
-                <Pressable onPress={() => selectStatus('ALL')} style={styles.dropdownOption}>
-                  <Text style={[styles.dropdownOptionText, selectedStatus === 'ALL' && styles.dropdownOptionTextActive]}>
-                    Tất cả
-                  </Text>
-                  {selectedStatus === 'ALL' && <Text style={styles.dropdownOptionCheck}>✓</Text>}
-                </Pressable>
-              </View>
-            )}
-          </View>
-
-          {/* Collector Dropdown */}
-          {!isStaff ? (
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Nhân viên thu</Text>
-              <Pressable onPress={() => toggleFilter('collector')} style={styles.selectShell}>
-                <View style={styles.selectIconWrap}>
-                  <Text style={styles.selectIcon}>{expandedFilter === 'collector' ? '▴' : '▾'}</Text>
-                </View>
-                <Text style={styles.selectValueText}>{selectedCollectorLabel}</Text>
-              </Pressable>
-              {expandedFilter === 'collector' && (
-                <View style={styles.dropdownPanel}>
-                  <Pressable onPress={() => selectCollector(null)} style={styles.dropdownOption}>
-                    <Text style={[styles.dropdownOptionText, selectedCollectorId === null && styles.dropdownOptionTextActive]}>
-                      Tất cả nhân viên
-                    </Text>
-                    {selectedCollectorId === null && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+              {/* Collector Dropdown */}
+              {!isStaff ? (
+                <View style={styles.filterField}>
+                  <Text style={styles.filterLabel}>Nhân viên thu</Text>
+                  <Pressable onPress={() => toggleFilter('collector')} style={styles.selectShell}>
+                    <View style={styles.selectIconWrap}>
+                      <Text style={styles.selectIcon}>{expandedFilter === 'collector' ? '▴' : '▾'}</Text>
+                    </View>
+                    <Text style={styles.selectValueText}>{selectedCollectorLabel}</Text>
                   </Pressable>
-                  {collectors.map((item) => (
-                    <Pressable key={item.id} onPress={() => selectCollector(item.id)} style={styles.dropdownOption}>
-                      <Text style={[styles.dropdownOptionText, selectedCollectorId === item.id && styles.dropdownOptionTextActive]}>
-                        {item.hoVaTen} ({item.taiKhoan})
-                      </Text>
-                      {selectedCollectorId === item.id && <Text style={styles.dropdownOptionCheck}>✓</Text>}
-                    </Pressable>
-                  ))}
+                  {expandedFilter === 'collector' && (
+                    <View style={styles.dropdownPanel}>
+                      <Pressable onPress={() => selectCollector(null)} style={styles.dropdownOption}>
+                        <Text style={[styles.dropdownOptionText, selectedCollectorId === null && styles.dropdownOptionTextActive]}>
+                          Tất cả nhân viên
+                        </Text>
+                        {selectedCollectorId === null && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                      </Pressable>
+                      {collectors.map((item) => (
+                        <Pressable key={item.id} onPress={() => selectCollector(item.id)} style={styles.dropdownOption}>
+                          <Text style={[styles.dropdownOptionText, selectedCollectorId === item.id && styles.dropdownOptionTextActive]}>
+                            {item.hoVaTen} ({item.taiKhoan})
+                          </Text>
+                          {selectedCollectorId === item.id && <Text style={styles.dropdownOptionCheck}>✓</Text>}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.filterField}>
+                  <Text style={styles.filterLabel}>Nhân viên thu</Text>
+                  <View style={[styles.selectShell, styles.disabledShell]}>
+                    <Text style={styles.disabledText}>
+                      {session?.user.hoVaTen} ({session?.user.taiKhoan})
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
-          ) : (
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Nhân viên thu</Text>
-              <View style={[styles.selectShell, styles.disabledShell]}>
-                <Text style={styles.disabledText}>
-                  {session?.user.hoVaTen} ({session?.user.taiKhoan})
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
 
             <Pressable onPress={handleSearch} style={styles.searchButton}>
-              <Text style={styles.searchButtonText}>Tìm kiếm báo cáo</Text>
+              <Text style={styles.searchButtonText}>Xem báo cáo</Text>
             </Pressable>
           </>
         )}
@@ -600,7 +619,7 @@ export default function DetailByPeriodReportRoute() {
       {reportSummary ? (
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Tổng hợp số liệu</Text>
-          
+
           {/* Row 1: Household counts (3 columns) */}
           <View style={styles.statsRow}>
             <View style={styles.statColumn}>
@@ -791,6 +810,33 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     padding: 14,
+  },
+  reportNavTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  navTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#e6f2ed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#cce3db',
+  },
+  navTabBtnActive: {
+    backgroundColor: '#0d8a6a',
+    borderColor: '#0d8a6a',
+  },
+  navTabBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#265447',
+  },
+  navTabBtnTextActive: {
+    color: '#ffffff',
   },
   filterCard: {
     backgroundColor: '#ffffff',

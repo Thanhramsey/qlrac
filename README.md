@@ -1,110 +1,127 @@
 # 🗑️ Hệ Thống Quản Lý Thu Rác & Hóa Đơn Điện Tử
 
-Dự án tích hợp gồm 3 thành phần chính:
-1. **Backend (NestJS)**: API Server kết nối PostgreSQL qua Prisma.
-2. **Frontend Web (ReactJS + Vite)**: Trang quản trị dành cho Admin/Kế toán.
-3. **Mobile App (React Native + Expo)**: Ứng dụng di động dành cho nhân viên thu rác.
+Dự án tích hợp đầy đủ gồm 3 thành phần chính:
+1. **Backend (NestJS + Prisma + PostgreSQL)**: API Server xử lý nghiệp vụ, quản lý dữ liệu và xuất hóa đơn.
+2. **Frontend Web (ReactJS + Vite + AntD)**: Trang quản trị dành cho Admin / Kế toán.
+3. **Mobile App (React Native + Expo)**: Ứng dụng di động dành cho nhân viên thu gom rác tại hiện trường.
 
 ---
 
 ## 🚀 Hướng Dẫn Cài Đặt Từ Đầu
 
-### 1. Cài đặt thư viện (Dependencies)
-Chạy các lệnh sau để cài đặt đầy đủ thư viện cho cả 3 phân hệ:
+### 1. Cài đặt Thư viện (Dependencies)
 
 ```bash
-# 1. Cài đặt tại thư mục gốc (Backend)
+# 1. Cài đặt Backend (thư mục gốc)
 npm install
 
-# 2. Cài đặt cho Frontend Web
+# 2. Cài đặt Frontend Web
 npm install --prefix admin-frontend
 
-# 3. Cài đặt cho Mobile App
+# 3. Cài đặt Mobile App
 cd mobile
 npm install --legacy-peer-deps
 cd ..
 ```
 
-### 2. Cấu hình Môi trường & Cơ sở dữ liệu
-1. Tạo file `.env` ở thư mục gốc (nếu chưa có) và cấu hình kết nối PostgreSQL:
+---
+
+### 2. Cấu Hình Môi Trường & Cơ Sở Dữ Liệu Local
+
+1. Tạo file `.env` ở thư mục gốc (nếu chưa có) và khai báo kết nối PostgreSQL Local:
    ```env
-   DATABASE_URL=postgresql://postgres:admin123@localhost:5432/qlrac?schema=public
+   DATABASE_URL="postgresql://postgres:admin123@localhost:5432/db_quanly_thurac?schema=public"
+   JWT_SECRET="qltrac_super_secret_key_change_in_production"
+   JWT_EXPIRES_IN="1d"
+   JWT_ACCESS_EXPIRES_IN="1d"
+   JWT_REFRESH_SECRET="qltrac_refresh_super_secret_key_change_in_production"
+   JWT_REFRESH_EXPIRES_IN="7d"
    ```
-2. Khởi tạo Cơ sở dữ liệu (chạy Migrations & Seed dữ liệu mẫu):
+
+2. Khởi tạo Cơ sở dữ liệu (Migration & Seed dữ liệu mẫu):
    ```bash
    npm run db:setup
    ```
-   *Lệnh này sẽ tự động chạy các file migration và nạp sẵn dữ liệu mẫu (Khu vực, Tuyến thu, Hộ dân, Tài khoản mẫu).*
+   *(Lệnh này chạy migration và nạp dữ liệu mẫu: Tỉnh/Phường/Thôn xóm, Tuyến thu, Hộ dân, Dịch vụ & Tài khoản mặc định).*
 
-#### Các tài khoản mặc định (Mật khẩu: `123456`):
-- **Admin cấp cao:** `admin01`
-- **Admin cấp 2:** `adminlv2`
-- **Nhân viên thu rác:** `staff01`
-- **Kế toán:** `account01`
+#### Tài khoản mặc định (Mật khẩu: `123456`):
+- **Admin Cấp Cao:** `admin01`
+- **Admin Cấp 2:** `adminlv2`
+- **Kế Toán:** `account01`
+- **Nhân Viên Thu Rác:** `staff01`
 
 ---
 
-## 💻 Hướng Dẫn Chạy Hệ Thống
+## 💻 Hướng Dẫn Chạy Hệ Thống Ở Môi Trường Local
 
 ### 1. Chạy Backend & Frontend Web (Đồng thời)
-Tại thư mục gốc của dự án, chạy lệnh:
+Tại thư mục gốc của dự án:
 ```bash
 npm run dev:all
 ```
-*   **Backend NestJS** sẽ khởi động tại: `http://localhost:3000`
-*   **Frontend Web** sẽ khởi động tại: `http://localhost:5173` (hoặc cổng Vite hiển thị trên terminal)
+- 🌐 **Backend NestJS**: `http://localhost:3000`
+- 🖥️ **Frontend Web**: `http://localhost:5173` *(Tự động proxy `/api` sang `localhost:3000`)*
 
 ### 2. Chạy Mobile App (React Native + Expo)
-Di chuyển vào thư mục `mobile` và khởi chạy Expo Metro Bundler:
+Chuyển vào thư mục `mobile` và khởi chạy:
+
 ```bash
 cd mobile
 
-# Chạy sạch cache và kết nối qua dải mạng LAN
-# Lệnh mở cổng 3000 cho Backend NestJS
-New-NetFirewallRule -DisplayName "Allow NestJS Port 3000" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow
+# Cách 1: Chạy Native Development Build trên Máy ảo / Máy thật Android (Tự động sinh lại thư mục native android)
+npx expo run:android
 
-# Lệnh mở cổng 8081 cho Server Expo Metro
-New-NetFirewallRule -DisplayName "Allow Expo Port 8081" -Direction Inbound -LocalPort 8081 -Protocol TCP -Action Allow
-npx expo start --lan --clear
+# Cách 2: Chạy nhanh qua Expo Go (Quét mã QR trên điện thoại)
+npx expo start
 ```
 
-> 💡 **Mẹo chạy thử Mobile:**
-> *   **Trên máy tính (Web):** Nhấn phím `w` để mở giao diện mobile dạng web tại `http://localhost:8081`.
-> *   **Trên điện thoại thật (Expo Go):** Quét mã QR hiển thị ở terminal (Đảm bảo điện thoại và máy tính kết nối chung mạng Wi-Fi).
-> *   **Nếu Wi-Fi không thông nhau (khác dải mạng):** Sử dụng chế độ đường hầm (tunnel):
->     ```bash
->     npx expo start -c --tunnel
->     ```
+> 💡 **Mẹo:** Trong file `mobile/.env`, nếu đặt `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000`, Expo sẽ tự động nhận diện IP WiFi máy tính của bạn khi dev!
 
 ---
 
-## 📦 Đóng Gói Ứng Dụng Mobile (Build APK)
-Để tạo file `.apk` cài đặt trực tiếp lên điện thoại Android qua EAS Build:
+## ⚙️ Quản Lý Biến Môi Trường (Local vs Deploy)
+
+| Phân hệ | Local Dev | Production Deploy |
+|---|---|---|
+| **Backend** | `.env` ở thư mục gốc | Dashboard **Railway** (PostgreSQL Connection Reference) |
+| **Frontend** | `admin-frontend/.env.development` (`VITE_API_BASE_URL=/api`) | `admin-frontend/.env.production` hoặc Dashboard **Vercel** (`VITE_API_BASE_URL=https://qlrac-production.up.railway.app`) |
+| **Mobile** | `mobile/.env` (`EXPO_PUBLIC_API_BASE_URL=http://localhost:3000` hoặc Railway URL) | Biến môi trường trên **EAS Cloud** (`EXPO_PUBLIC_API_BASE_URL=https://qlrac-production.up.railway.app`) |
+
+---
+
+## 🌐 Hướng Dẫn Deploy Production (Free Cloud)
+
+### 1. Backend + Database → Railway
+- Deploy từ GitHub repo (Railway tự chọn `Dockerfile`).
+- Tạo service **PostgreSQL** trên Railway.
+- Cấu hình Variable `DATABASE_URL` dạng Reference `${{PostgreSQL.DATABASE_URL}}`.
+- URL Backend: `https://qlrac-production.up.railway.app`
+
+### 2. Frontend Web → Vercel
+- Root Directory: `admin-frontend`
+- Build Command: `vite build` | Output Directory: `dist`
+- Set Environment Variable: `VITE_API_BASE_URL` = `https://qlrac-production.up.railway.app`
+
+### 3. Mobile App (Build file APK) → Expo EAS Build
+Chạy các lệnh sau trong thư mục `mobile`:
+
 ```bash
 cd mobile
-# Đăng nhập tài khoản Expo (chỉ làm lần đầu)
+
+# 1. Đăng nhập Expo (chỉ cần 1 lần)
 npx eas-cli login
 
-# Tạo file APK (bản preview)
-npx eas-cli build --platform android --profile preview
+# 2. Cập nhật URL Railway trên EAS Cloud (chỉ cần 1 lần)
+npx eas-cli env:update --variable-name EXPO_PUBLIC_API_BASE_URL --value "https://qlrac-production.up.railway.app" --environment preview
+
+# 3. Kích hoạt Build file APK
+npx eas-cli build --platform android --profile preview --non-interactive
 ```
+*(Sau khi build xong, quét mã QR trên terminal hoặc truy cập liên kết Expo để tải file `.apk` cài lên thiết bị Android).*
 
 ---
 
 ## 🛠️ Một Số Lệnh Hữu Ích Khác
-*   **Cập nhật cấu hình Database (Prisma Migration):**
-    ```bash
-    npx prisma migrate deploy
-    ```
-*   **Chạy lại Seed dữ liệu:**
-    ```bash
-    npm run db:seed
-    ```
-*   **Khắc phục lỗi xung đột phiên bản Expo:**
-    ```bash
-    npx expo install --fix -- --legacy-peer-deps
-    ```
-
-    DEBUG APP npx expo run:android
-    cd d:\back-up\vite\quanlythurac\mobile
-npx eas-cli build --platform android --profile preview --non-interactive
+* **Chạy lại Migration Database:** `npx prisma migrate deploy`
+* **Chạy lại Seed Dữ liệu mẫu:** `npm run db:seed`
+* **Xuất / Nhập Backup dữ liệu DB:** `npm run db:export` / `npm run db:import`

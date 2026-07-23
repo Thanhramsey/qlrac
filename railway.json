@@ -7,7 +7,7 @@
   "deploy": {
     "numReplicas": 1,
     "startCommand": "node dist/main",
-    "preDeployCommand": "npx prisma migrate deploy",
+    "preDeployCommand": "npx prisma migrate deploy --schema=prisma/schema.prisma",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",

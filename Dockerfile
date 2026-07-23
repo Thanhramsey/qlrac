@@ -8,6 +8,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install dependencies
 RUN npm ci --only=production=false
@@ -35,6 +36,7 @@ RUN apk add --no-cache dumb-init
 COPY --from=backend-builder /app/dist ./dist
 COPY --from=backend-builder /app/node_modules ./node_modules
 COPY --from=backend-builder /app/prisma ./prisma
+COPY --from=backend-builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=backend-builder /app/package.json ./
 
 # Create uploads directory

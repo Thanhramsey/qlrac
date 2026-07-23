@@ -46,10 +46,6 @@ ENV NODE_ENV=production
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-
-# Start with dumb-init
+# Start app (migration sẽ được Railway chạy riêng qua preDeployCommand)
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["node", "dist/main"]

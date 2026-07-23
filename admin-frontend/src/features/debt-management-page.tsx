@@ -325,7 +325,7 @@ export function DebtManagementPage({ onViewHistory }: DebtManagementPageProps) {
               step={100000}
               style={{ width: 160 }}
               formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(val) => Number(val?.replace(/,/g, '') ?? 0)}
+              parser={(val) => (Number(val?.replace(/,/g, '') ?? 0) as unknown as 0)}
               placeholder="VD: 500000"
             />
           </Form.Item>

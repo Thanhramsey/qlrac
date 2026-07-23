@@ -1,3 +1,4 @@
+import 'dotenv/config'; // Load .env local; Railway tự inject env vars nên không cần file .env
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { existsSync, mkdirSync } from 'fs';

@@ -106,3 +106,5 @@ npx eas-cli build --platform android --profile preview
     ```
 
     DEBUG APP npx expo run:android
+    cd d:\back-up\vite\quanlythurac\mobile
+npx eas-cli build --platform android --profile preview --non-interactive

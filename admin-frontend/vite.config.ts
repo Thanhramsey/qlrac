@@ -2,9 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  server: {
+  // Chỉ dùng proxy khi dev local, production dùng VITE_API_URL
+  server: mode === 'development' ? {
     port: 5173,
     proxy: {
       '/api': {
@@ -17,5 +18,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-})
+  } : undefined,
+}))
